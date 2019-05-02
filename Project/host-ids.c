@@ -8,7 +8,7 @@
 
 #include "data-sent.h"
 
-#define LOG_MODULE "App"
+#define LOG_MODULE "Node"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 #define WITH_SERVER_REPLY  1
@@ -49,8 +49,6 @@ PROCESS_THREAD(udp_client_process, ev, data)
       LOG_INFO("Sending request %u to ", count);
       LOG_INFO_6ADDR(&dest_ipaddr);
       LOG_INFO_("\n");
-      //snprintf(str, sizeof(str), "Stats");
-      //simple_udp_sendto(&udp_conn, str, strlen(str), &dest_ipaddr);
       
       simple_udp_sendto(&udp_conn, &da_sent, sizeof(da_sent), &dest_ipaddr);
       count++;
