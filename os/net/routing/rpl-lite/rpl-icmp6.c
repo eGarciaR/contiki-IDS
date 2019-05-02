@@ -135,7 +135,7 @@ dis_input(void)
     LOG_WARN("dis_input: not in an instance yet, discard\n");
     goto discard;
   }
-
+  
   LOG_INFO("received a DIS from ");
   LOG_INFO_6ADDR(&UIP_IP_BUF->srcipaddr);
   LOG_INFO_("\n");
@@ -311,7 +311,7 @@ dio_input(void)
         goto discard;
     }
   }
-
+  
   LOG_INFO("received a %s-DIO from ",
       uip_is_addr_mcast(&UIP_IP_BUF->destipaddr) ? "multicast" : "unicast");
   LOG_INFO_6ADDR(&from);
@@ -346,7 +346,6 @@ rpl_icmp6_dio_output(uip_ipaddr_t *uc_addr)
       return;
     }
   }
-
   /* DAG Information Object */
   pos = 0;
 
@@ -532,7 +531,7 @@ dao_input(void)
   LOG_INFO_(", prefix length %u, parent ", dao.prefixlen);
   LOG_INFO_6ADDR(&dao.parent_addr);
   LOG_INFO_(" \n");
-
+  
   rpl_process_dao(&from, &dao);
 
   discard:
@@ -613,7 +612,7 @@ rpl_icmp6_dao_output(uint8_t lifetime)
   LOG_INFO_(", parent ");
   LOG_INFO_6ADDR(parent_ipaddr);
   LOG_INFO_("\n");
-
+  
   /* Send DAO to root (IPv6 address is DAG ID) */
   uip_icmp6_send(&curr_instance.dag.dag_id, ICMP6_RPL, RPL_CODE_DAO, pos);
 }
