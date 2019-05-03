@@ -3,6 +3,7 @@
 #include "random.h"
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
+#include "net/routing/rpl-lite/rpl.h"
 
 #include "sys/log.h"
 
@@ -15,15 +16,25 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (60 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (20 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
 static struct data_sent da_sent;
 
 /*---------------------------------------------------------------------------*/
+PROCESS(initialize_IDS, "Initialize IDS");
 PROCESS(udp_client_process, "UDP client");
-AUTOSTART_PROCESSES(&udp_client_process);
+AUTOSTART_PROCESSES(&initialize_IDS, &udp_client_process);
 /*---------------------------------------------------------------------------*/
+PROCESS_THREAD(initialize_IDS, ev, data)
+{
+  PROCESS_BEGIN();
+
+  initialize_control_messages_received();
+
+  PROCESS_END()
+}
+
 PROCESS_THREAD(udp_client_process, ev, data)
 {
   static struct etimer periodic_timer;
@@ -31,8 +42,6 @@ PROCESS_THREAD(udp_client_process, ev, data)
   uip_ipaddr_t dest_ipaddr;
   
   strcpy(da_sent.control,"stats"); 
-  da_sent.DIO_messages_received = 10;
-  da_sent.DIS_messages_received = 8;
 
   PROCESS_BEGIN();
 
@@ -50,6 +59,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
       LOG_INFO_6ADDR(&dest_ipaddr);
       LOG_INFO_("\n");
       
+      da_sent.DIO_messages_received = get_dio_count();
+      da_sent.DIS_messages_received = 8;  
       simple_udp_sendto(&udp_conn, &da_sent, sizeof(da_sent), &dest_ipaddr);
       count++;
     } else {

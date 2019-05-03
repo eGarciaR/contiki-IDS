@@ -171,6 +171,9 @@ rpl_icmp6_dis_output(uip_ipaddr_t *addr)
 static void
 dio_input(void)
 {
+  /*Code for IDS*/
+  ++dio_messages_received;
+  /*-------------------------------------------------------------*/
   unsigned char *buffer;
   uint8_t buffer_length;
   rpl_dio_t dio;
@@ -683,5 +686,18 @@ rpl_icmp6_init()
 #endif /* RPL_WITH_DAO_ACK */
 }
 /*---------------------------------------------------------------------------*/
+
+/*Additional code and variables for IDS implementation*/
+void
+initialize_control_messages_received()
+{
+  dio_messages_received = 0;
+}
+
+int 
+get_dio_count()
+{
+  return dio_messages_received;
+}
 
 /** @}*/
