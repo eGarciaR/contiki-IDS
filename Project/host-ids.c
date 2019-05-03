@@ -59,8 +59,11 @@ PROCESS_THREAD(udp_client_process, ev, data)
       LOG_INFO_6ADDR(&dest_ipaddr);
       LOG_INFO_("\n");
       
-      da_sent.DIO_messages_received = get_dio_count();
-      da_sent.DIS_messages_received = 8;  
+      int *cmc;
+      cmc = get_control_messages_count();
+      da_sent.DIO_messages_received = *(cmc+0);
+      da_sent.DIS_messages_received = *(cmc+1);
+      da_sent.DAO_messages_received = *(cmc+2);  
       simple_udp_sendto(&udp_conn, &da_sent, sizeof(da_sent), &dest_ipaddr);
       count++;
     } else {

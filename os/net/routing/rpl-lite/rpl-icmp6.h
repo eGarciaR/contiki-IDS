@@ -86,10 +86,12 @@ typedef struct rpl_dao rpl_dao_t;
 
 /*Additional code and variables for IDS implementation*/
 int dio_messages_received;
+int dis_messages_received;
+int dao_messages_received;
 
 void initialize_control_messages_received();
 
-int get_dio_count();
+int * get_control_messages_count();
 
 
 /********** Public functions **********/

@@ -131,6 +131,8 @@ rpl_icmp6_update_nbr_table(uip_ipaddr_t *from, nbr_table_reason_t reason, void *
 static void
 dis_input(void)
 {
+  /*Code for IDS*/
+  ++dis_messages_received;
   if(!curr_instance.used) {
     LOG_WARN("dis_input: not in an instance yet, discard\n");
     goto discard;
@@ -456,6 +458,8 @@ rpl_icmp6_dio_output(uip_ipaddr_t *uc_addr)
 static void
 dao_input(void)
 {
+  /*Code for IDS*/
+  ++dio_messages_received;
   struct rpl_dao dao;
   uint8_t subopt_type;
   unsigned char *buffer;
@@ -692,12 +696,18 @@ void
 initialize_control_messages_received()
 {
   dio_messages_received = 0;
+  dis_messages_received = 0;
+  dao_messages_received = 0;
 }
 
-int 
-get_dio_count()
+int *
+get_control_messages_count()
 {
-  return dio_messages_received;
+  static int control_messages[3] = {0,0,0};
+  control_messages[0] = dio_messages_received;
+  control_messages[1] = dis_messages_received;
+  control_messages[2] = dao_messages_received;
+  return control_messages;
 }
 
 /** @}*/

@@ -31,7 +31,7 @@ udp_rx_callback(struct simple_udp_connection *c,
 
   /* If the struct contains "stats" control, proceed with stats storage */
   if (!strcmp(test->control,"stats")) {
-    LOG_INFO("Received '%d' and '%d'from ", test->DIO_messages_received, test->DIS_messages_received);
+    LOG_INFO("Received '%d', '%d' and '%d'from ", test->DIO_messages_received, test->DIS_messages_received, test->DAO_messages_received);
     LOG_INFO_6ADDR(sender_addr);
     LOG_INFO_("\n");
     
