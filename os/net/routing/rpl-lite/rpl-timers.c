@@ -109,6 +109,9 @@ handle_dis_timer(void *ptr)
     rpl_icmp6_dis_output(NULL);
     rpl_timers_schedule_periodic_dis();
   }
+  /* Hello Flood Attack */
+  //rpl_icmp6_dis_output(NULL);
+  //rpl_timers_schedule_periodic_dis();
 }
 /*---------------------------------------------------------------------------*/
 /*------------------------------- DIO -------------------------------------- */

@@ -12,11 +12,10 @@
 #define LOG_MODULE "Node"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-#define WITH_SERVER_REPLY  1
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (20 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (60 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
 static struct data_sent da_sent;
@@ -38,11 +37,8 @@ PROCESS_THREAD(initialize_IDS, ev, data)
 PROCESS_THREAD(udp_client_process, ev, data)
 {
   static struct etimer periodic_timer;
-  static unsigned count;
   uip_ipaddr_t dest_ipaddr;
   
-  strcpy(da_sent.control,"stats"); 
-
   PROCESS_BEGIN();
 
   /* Initialize UDP connection */
@@ -53,21 +49,32 @@ PROCESS_THREAD(udp_client_process, ev, data)
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
 
-    if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) {
-      /* Send to DAG root */
-      LOG_INFO("Sending request %u to ", count);
-      LOG_INFO_6ADDR(&dest_ipaddr);
-      LOG_INFO_("\n");
-      
-      int *cmc;
-      cmc = get_control_messages_count();
-      da_sent.DIO_messages_received = *(cmc+0);
-      da_sent.DIS_messages_received = *(cmc+1);
-      da_sent.DAO_messages_received = *(cmc+2);  
-      simple_udp_sendto(&udp_conn, &da_sent, sizeof(da_sent), &dest_ipaddr);
-      count++;
-    } else {
-      LOG_INFO("Not reachable yet\n");
+    bool alarm = false;
+    int8_t *cmc;
+    cmc = get_control_messages_count();
+    if (*(cmc+0) > MAX_DIO_THRESHOLD) {
+      alarm = true;
+      strcpy(da_sent.control,"alarm_DIO");
+      LOG_INFO("ALARM DIO: '%d'\n", *(cmc+0));
+    } else if (*(cmc+1) > MAX_DIS_THRESHOLD) {
+      alarm = true;
+      strcpy(da_sent.control,"alarm_DIS");
+      LOG_INFO("ALARM DIS: '%d'\n", *(cmc+1));
+    } else if (*(cmc+2) > MAX_DAO_THRESHOLD) {
+      alarm = true;
+      strcpy(da_sent.control,"alarm_DAO");
+      LOG_INFO("ALARM DAO: '%d'\n", *(cmc+2));
+    }
+
+    if (alarm) {
+      if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) {
+        /* Send to DAG root */
+	simple_udp_sendto(&udp_conn, da_sent.control, sizeof(da_sent.control), &dest_ipaddr);
+        LOG_INFO("Alarm sent");
+	initialize_control_messages_received();
+      } else {
+	LOG_INFO("Not reachable yet\n");
+      }
     }
 
     /* Add some jitter */

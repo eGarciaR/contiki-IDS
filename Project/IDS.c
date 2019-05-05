@@ -12,7 +12,9 @@
 
 #include "data-sent.h"
 static struct simple_udp_connection udp_conn;
-static struct data_sent da_received;
+//static struct data_sent da_received;
+//static struct node_stats nd_stats;
+//static node_stats_storage nss;
 
 PROCESS(udp_server_process, "UDP server");
 AUTOSTART_PROCESSES(&udp_server_process);
@@ -27,16 +29,25 @@ udp_rx_callback(struct simple_udp_connection *c,
          uint16_t datalen)
 {
   /* Convert from uint8_t ot struct data_sent */
-  const data_sent *test = (data_sent *) data;
+  //const data_sent *test = (data_sent *) data;
 
-  /* If the struct contains "stats" control, proceed with stats storage */
-  if (!strcmp(test->control,"stats")) {
-    LOG_INFO("Received '%d', '%d' and '%d'from ", test->DIO_messages_received, test->DIS_messages_received, test->DAO_messages_received);
+  /* If the struct contains "alarm_*" control, proceed with stats storage */
+  if (!strcmp((char *) data,"alarm_DIO")) {
+    LOG_INFO("Received DIO alarm from ");
     LOG_INFO_6ADDR(sender_addr);
     LOG_INFO_("\n");
-    
-    /* Save to struct da_received */
-    da_received = *test;
+  } else if (!strcmp((char *) data,"alarm_DIS")) {
+    LOG_INFO("Received DIS alarm from ");
+    LOG_INFO_6ADDR(sender_addr);
+    LOG_INFO_("\n");
+  } else if (!strcmp((char *) data,"alarm_DAO")) {
+    LOG_INFO("Received DAO alarm from ");;
+    LOG_INFO_6ADDR(sender_addr);
+    LOG_INFO_("\n");
+  } else {
+    LOG_INFO("Unable to understand message from ");
+    LOG_INFO_6ADDR(sender_addr);
+    LOG_INFO_("\n");
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -50,6 +61,8 @@ PROCESS_THREAD(udp_server_process, ev, data)
   /* Initialize UDP connection */
   simple_udp_register(&udp_conn, UDP_SERVER_PORT, NULL,
                       UDP_CLIENT_PORT, udp_rx_callback);
+
+  /* Initialize the node_stats_storage matrix*/
 
   PROCESS_END();
 }

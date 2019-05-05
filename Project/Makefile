@@ -1,4 +1,4 @@
-CONTIKI_PROJECT = host-ids IDS
+CONTIKI_PROJECT = host-ids IDS dummy-node
 all: $(CONTIKI_PROJECT)
 
 CONTIKI=../
