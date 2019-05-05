@@ -54,6 +54,8 @@ udp_rx_callback(struct simple_udp_connection *c,
 PROCESS_THREAD(udp_server_process, ev, data)
 {
   PROCESS_BEGIN();
+  
+  printf("IDS Server started\n");
 
   /* Initialize DAG root */
   NETSTACK_ROUTING.root_start();

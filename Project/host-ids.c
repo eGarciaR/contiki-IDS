@@ -15,7 +15,7 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (60 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (5 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
 static struct data_sent da_sent;
@@ -30,7 +30,7 @@ PROCESS_THREAD(initialize_IDS, ev, data)
   PROCESS_BEGIN();
 
   initialize_control_messages_received();
-
+  
   PROCESS_END()
 }
 
@@ -40,18 +40,17 @@ PROCESS_THREAD(udp_client_process, ev, data)
   uip_ipaddr_t dest_ipaddr;
   
   PROCESS_BEGIN();
-
+  
   /* Initialize UDP connection */
   simple_udp_register(&udp_conn, UDP_CLIENT_PORT, NULL,
                       UDP_SERVER_PORT, NULL);
-
   etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL);
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-
     bool alarm = false;
-    int8_t *cmc;
+    int16_t *cmc;
     cmc = get_control_messages_count();
+    LOG_INFO("'%d', '%d', '%d'\n", *(cmc+0), *(cmc+1), *(cmc+2));
     if (*(cmc+0) > MAX_DIO_THRESHOLD) {
       alarm = true;
       strcpy(da_sent.control,"alarm_DIO");

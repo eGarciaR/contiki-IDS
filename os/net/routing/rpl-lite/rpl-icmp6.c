@@ -700,10 +700,10 @@ initialize_control_messages_received()
   dao_messages_received = 0;
 }
 
-int8_t *
+int16_t *
 get_control_messages_count()
 {
-  static int8_t control_messages[3] = {0,0,0};
+  static int16_t control_messages[3] = {0,0,0};
   control_messages[0] = dio_messages_received;
   control_messages[1] = dis_messages_received;
   control_messages[2] = dao_messages_received;
