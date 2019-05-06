@@ -12,8 +12,6 @@ PROCESS_THREAD(hello_world_process, ev, data)
 
   PROCESS_BEGIN();
 
-  printf("TEST");
-
   /* Setup a periodic timer that expires after 60 seconds. */
   etimer_set(&timer, CLOCK_SECOND * 60);
 

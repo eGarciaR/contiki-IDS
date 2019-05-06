@@ -28,21 +28,21 @@ udp_rx_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-  /* Convert from uint8_t ot struct data_sent */
-  //const data_sent *test = (data_sent *) data;
+  /* Convert from uint8_t to struct data_sent */
+  const data_sent *test = (data_sent *) data;
 
   /* If the struct contains "alarm_*" control, proceed with stats storage */
-  if (!strcmp((char *) data,"alarm_DIO")) {
+  if (!strcmp((char *) test->control,"alarm_DIO")) {
     LOG_INFO("Received DIO alarm from ");
-    LOG_INFO_6ADDR(sender_addr);
+    LOG_INFO_6ADDR(&test->node_ipaddr);
     LOG_INFO_("\n");
-  } else if (!strcmp((char *) data,"alarm_DIS")) {
+  } else if (!strcmp((char *) test->control,"alarm_DIS")) {
     LOG_INFO("Received DIS alarm from ");
-    LOG_INFO_6ADDR(sender_addr);
+    LOG_INFO_6ADDR(&test->node_ipaddr);
     LOG_INFO_("\n");
-  } else if (!strcmp((char *) data,"alarm_DAO")) {
-    LOG_INFO("Received DAO alarm from ");;
-    LOG_INFO_6ADDR(sender_addr);
+  } else if (!strcmp((char *) test->control,"alarm_DAO")) {
+    LOG_INFO("Received DAO alarm from ");
+    LOG_INFO_6ADDR(&test->node_ipaddr);
     LOG_INFO_("\n");
   } else {
     LOG_INFO("Unable to understand message from ");
@@ -55,8 +55,6 @@ PROCESS_THREAD(udp_server_process, ev, data)
 {
   PROCESS_BEGIN();
   
-  printf("IDS Server started\n");
-
   /* Initialize DAG root */
   NETSTACK_ROUTING.root_start();
 

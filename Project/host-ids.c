@@ -15,7 +15,7 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (10 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (60 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
 static struct data_sent da_sent;
@@ -48,45 +48,41 @@ PROCESS_THREAD(udp_client_process, ev, data)
   etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL);
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-      LOG_INFO("DIOs:'%d' from ",nc->DIO_counter);
-      LOG_INFO_6ADDR(&nc->ipaddr);
-      LOG_INFO_("\n");
-    }
-    for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-      LOG_INFO("DISs:'%d' from ",nc->DIS_counter);
-      LOG_INFO_6ADDR(&nc->ipaddr);
-      LOG_INFO_("\n");
-    }
     bool alarm = false;
-    int8_t *cmc;
-    cmc = get_control_messages_count();
-    LOG_INFO("'%d', '%d', '%d'\n", *(cmc+0), *(cmc+1), *(cmc+2));
-    if (*(cmc+0) > MAX_DIO_THRESHOLD) {
-      alarm = true;
-      strcpy(da_sent.control,"alarm_DIO");
-      LOG_INFO("ALARM DIO: '%d'\n", *(cmc+0));
-    } else if (*(cmc+1) > MAX_DIS_THRESHOLD) {
-      alarm = true;
-      strcpy(da_sent.control,"alarm_DIS");
-      LOG_INFO("ALARM DIS: '%d'\n", *(cmc+1));
-    } else if (*(cmc+2) > MAX_DAO_THRESHOLD) {
-      alarm = true;
-      strcpy(da_sent.control,"alarm_DAO");
-      LOG_INFO("ALARM DAO: '%d'\n", *(cmc+2));
+    for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
+      LOG_INFO("DIO: %d, DIS: %d, DAO: %d \n",nc->DIO_counter, nc->DIS_counter, nc->DAO_counter);
+      if (nc->DIO_counter > MAX_DIO_THRESHOLD) {
+        alarm = true;
+	strcpy(da_sent.control,"alarm_DIO");
+	LOG_INFO("ALARM DIO: '%d'\n", nc->DIO_counter);
+      } else if (nc->DIS_counter > MAX_DIS_THRESHOLD) {
+        alarm = true;
+        strcpy(da_sent.control,"alarm_DIS");
+        LOG_INFO("ALARM DIS: '%d'\n", nc->DIS_counter);
+      } else if (nc->DAO_counter > MAX_DAO_THRESHOLD) {
+        alarm = true;
+        strcpy(da_sent.control,"alarm_DAO");
+        LOG_INFO("ALARM DAO: '%d'\n", nc->DAO_counter);
+      }
+      
+      if (alarm) {
+	LOG_INFO_6ADDR(&nc->ipaddr);
+        LOG_INFO_("\n");
+        uip_ipaddr_copy(&da_sent.node_ipaddr, &nc->ipaddr);
+	break;
+      }
     }
-
     if (alarm) {
       if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) {
         /* Send to DAG root */
-	simple_udp_sendto(&udp_conn, da_sent.control, sizeof(da_sent.control), &dest_ipaddr);
-        LOG_INFO("Alarm sent");
+	simple_udp_sendto(&udp_conn, &da_sent, sizeof(da_sent), &dest_ipaddr);
+        LOG_INFO("Alarm sent\n");
 	initialize_control_messages_received();
       } else {
 	LOG_INFO("Not reachable yet\n");
       }
     } else {
-      //initialize_control_messages_received();
+      initialize_control_messages_received();
     }
 
     /* Add some jitter */

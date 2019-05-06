@@ -16,9 +16,7 @@
 /*Struct to send control data to IDS*/
 typedef struct data_sent{
   char control[10];
-  int16_t DIO_messages_received;
-  int16_t DIS_messages_received;
-  int16_t DAO_messages_received;
+  uip_ipaddr_t node_ipaddr;
 } data_sent;
 
 /*Struct to store node stats*/

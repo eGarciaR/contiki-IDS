@@ -106,7 +106,7 @@ void set_node_sensor();
 
 void initialize_control_messages_received();
 
-int8_t * get_control_messages_count();
+/*int8_t * get_control_messages_count();*/
 
 /*------------------------------------------------------*/
 

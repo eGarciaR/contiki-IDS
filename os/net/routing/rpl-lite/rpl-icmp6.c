@@ -138,7 +138,6 @@ dis_input(void)
 {
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
-    if (nc_messages.DIS_counter < 255) {++nc_messages.DIS_counter;}
     control_messages_update(&UIP_IP_BUF->srcipaddr, "DIS");
   }
   /* -------------------------------------------------------------*/
@@ -184,7 +183,6 @@ dio_input(void)
 {
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
-    if (nc_messages.DIO_counter < 255) {++nc_messages.DIO_counter;}
     control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO");
   }
   /*-------------------------------------------------------------*/
@@ -472,7 +470,6 @@ dao_input(void)
 {
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
-    if (nc_messages.DAO_counter < 255) {++nc_messages.DAO_counter;}
     control_messages_update(&UIP_IP_BUF->srcipaddr, "DAO");
   }
   /*-------------------------------------------------------------*/
@@ -711,7 +708,10 @@ rpl_icmp6_init()
 void
 initialize_control_messages_received()
 {
-  nc_messages.DIO_counter = nc_messages.DIS_counter = nc_messages.DAO_counter = 0;
+  struct node_counter *nc;
+  for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
+    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = 0;
+  }
 }
 
 void
@@ -746,24 +746,12 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3])
     }
     list_add(node_stats_list, nc);
   } else {
-    if (!strcmp((char *) msg_type,"DIO")) {
+    if (!strcmp((char *) msg_type,"DIO") && (nc->DIO_counter < 254)) {
       ++nc->DIO_counter;
-    } else if (!strcmp((char *) msg_type,"DIS")) {
+    } else if (!strcmp((char *) msg_type,"DIS") && (nc->DIS_counter < 254)) {
       ++nc->DIS_counter;
-    } else if (!strcmp((char *) msg_type,"DAO")) {
+    } else if (!strcmp((char *) msg_type,"DAO") && (nc->DAO_counter < 254)) {
       ++nc->DAO_counter;
     }
   }
 }
-
-int8_t *
-get_control_messages_count()
-{
-  static int8_t control_messages[3] = {0,0,0};
-  control_messages[0] = nc_messages.DIO_counter;
-  control_messages[1] = nc_messages.DIS_counter;
-  control_messages[2] = nc_messages.DAO_counter;
-  return control_messages;
-}
-
-/** @}*/
