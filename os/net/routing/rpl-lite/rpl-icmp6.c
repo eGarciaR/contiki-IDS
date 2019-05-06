@@ -51,6 +51,8 @@
 
 #include <limits.h>
 
+#include "lib/memb.h"
+
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "RPL"
@@ -61,6 +63,9 @@
 #define RPL_DIO_MOP_SHIFT                3
 #define RPL_DIO_MOP_MASK                 0x38
 #define RPL_DIO_PREFERENCE_MASK          0x07
+/*---------------------------------------------------------------------------*/
+/* Allocate memory for nodes list (IDS CODE)*/
+MEMB(nodes_list_memb, struct node_counter, 10);
 
 /*---------------------------------------------------------------------------*/
 static void dis_input(void);
@@ -134,6 +139,7 @@ dis_input(void)
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
     if (nc_messages.DIS_counter < 255) {++nc_messages.DIS_counter;}
+    control_messages_update(&UIP_IP_BUF->srcipaddr, "DIS");
   }
   /* -------------------------------------------------------------*/
   if(!curr_instance.used) {
@@ -179,6 +185,7 @@ dio_input(void)
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
     if (nc_messages.DIO_counter < 255) {++nc_messages.DIO_counter;}
+    control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO");
   }
   /*-------------------------------------------------------------*/
   unsigned char *buffer;
@@ -466,6 +473,7 @@ dao_input(void)
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
     if (nc_messages.DAO_counter < 255) {++nc_messages.DAO_counter;}
+    control_messages_update(&UIP_IP_BUF->srcipaddr, "DAO");
   }
   /*-------------------------------------------------------------*/
   struct rpl_dao dao;
@@ -703,10 +711,6 @@ rpl_icmp6_init()
 void
 initialize_control_messages_received()
 {
-  /*dio_messages_received = 0;
-  dis_messages_received = 0;
-  dao_messages_received = 0;
-  */
   nc_messages.DIO_counter = nc_messages.DIS_counter = nc_messages.DAO_counter = 0;
 }
 
@@ -714,15 +718,48 @@ void
 set_node_sensor()
 {
   IDS_NODE_SENSOR = true;
+  memb_init(&nodes_list_memb);
+  list_init(node_stats_list);
+}
+
+void
+control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3])
+{
+  struct node_counter *nc;
+  /* Check if we already know this node */
+  for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
+    if (uip_ipaddr_cmp(srcaddr,&nc->ipaddr)) {
+      break;
+    }
+  }
+
+  /* If nc is NULL, the node is not in the list */
+  if (nc == NULL) {
+    nc = memb_alloc(&nodes_list_memb);
+    uip_ipaddr_copy(&nc->ipaddr, srcaddr);
+    if (!strcmp((char *) msg_type,"DIO")) {
+      nc->DIO_counter = 1;
+    } else if (!strcmp((char *) msg_type,"DIS")) {
+      nc->DIS_counter = 1;
+    } else if (!strcmp((char *) msg_type,"DAO")) {
+      nc->DAO_counter= 1;
+    }
+    list_add(node_stats_list, nc);
+  } else {
+    if (!strcmp((char *) msg_type,"DIO")) {
+      ++nc->DIO_counter;
+    } else if (!strcmp((char *) msg_type,"DIS")) {
+      ++nc->DIS_counter;
+    } else if (!strcmp((char *) msg_type,"DAO")) {
+      ++nc->DAO_counter;
+    }
+  }
 }
 
 int8_t *
 get_control_messages_count()
 {
   static int8_t control_messages[3] = {0,0,0};
-  //control_messages[0] = dio_messages_received;
-  //control_messages[1] = dis_messages_received;
-  //control_messages[2] = dao_messages_received;
   control_messages[0] = nc_messages.DIO_counter;
   control_messages[1] = nc_messages.DIS_counter;
   control_messages[2] = nc_messages.DAO_counter;
