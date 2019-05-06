@@ -15,7 +15,7 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (5 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (60 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
 static struct data_sent da_sent;
@@ -28,7 +28,8 @@ AUTOSTART_PROCESSES(&initialize_IDS, &udp_client_process);
 PROCESS_THREAD(initialize_IDS, ev, data)
 {
   PROCESS_BEGIN();
-
+  
+  set_node_sensor();
   initialize_control_messages_received();
   
   PROCESS_END()
@@ -48,7 +49,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     bool alarm = false;
-    int16_t *cmc;
+    int8_t *cmc;
     cmc = get_control_messages_count();
     LOG_INFO("'%d', '%d', '%d'\n", *(cmc+0), *(cmc+1), *(cmc+2));
     if (*(cmc+0) > MAX_DIO_THRESHOLD) {
@@ -74,6 +75,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
       } else {
 	LOG_INFO("Not reachable yet\n");
       }
+    } else {
+      initialize_control_messages_received();
     }
 
     /* Add some jitter */

@@ -85,14 +85,25 @@ struct rpl_dao {
 typedef struct rpl_dao rpl_dao_t;
 
 /*Additional code and variables for IDS implementation*/
-int16_t dio_messages_received;
-int16_t dis_messages_received;
-int16_t dao_messages_received;
+
+typedef struct node_counter {
+  uip_ipaddr_t ipaddr;
+  int8_t DIO_counter;
+  int8_t DIS_counter;
+  int8_t DAO_counter;
+} node_counter;
+
+bool IDS_NODE_SENSOR;
+
+struct node_counter nc_messages;
+
+void set_node_sensor();
 
 void initialize_control_messages_received();
 
-int16_t * get_control_messages_count();
+int8_t * get_control_messages_count();
 
+/*------------------------------------------------------*/
 
 /********** Public functions **********/
 

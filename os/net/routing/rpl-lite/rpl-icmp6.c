@@ -132,7 +132,10 @@ static void
 dis_input(void)
 {
   /*Code for IDS*/
-  ++dis_messages_received;
+  if (IDS_NODE_SENSOR) {
+    if (nc_messages.DIS_counter < 255) {++nc_messages.DIS_counter;}
+  }
+  /* -------------------------------------------------------------*/
   if(!curr_instance.used) {
     LOG_WARN("dis_input: not in an instance yet, discard\n");
     goto discard;
@@ -174,7 +177,9 @@ static void
 dio_input(void)
 {
   /*Code for IDS*/
-  ++dio_messages_received;
+  if (IDS_NODE_SENSOR) {
+    if (nc_messages.DIO_counter < 255) {++nc_messages.DIO_counter;}
+  }
   /*-------------------------------------------------------------*/
   unsigned char *buffer;
   uint8_t buffer_length;
@@ -459,7 +464,10 @@ static void
 dao_input(void)
 {
   /*Code for IDS*/
-  ++dio_messages_received;
+  if (IDS_NODE_SENSOR) {
+    if (nc_messages.DAO_counter < 255) {++nc_messages.DAO_counter;}
+  }
+  /*-------------------------------------------------------------*/
   struct rpl_dao dao;
   uint8_t subopt_type;
   unsigned char *buffer;
@@ -695,18 +703,29 @@ rpl_icmp6_init()
 void
 initialize_control_messages_received()
 {
-  dio_messages_received = 0;
+  /*dio_messages_received = 0;
   dis_messages_received = 0;
   dao_messages_received = 0;
+  */
+  nc_messages.DIO_counter = nc_messages.DIS_counter = nc_messages.DAO_counter = 0;
 }
 
-int16_t *
+void
+set_node_sensor()
+{
+  IDS_NODE_SENSOR = true;
+}
+
+int8_t *
 get_control_messages_count()
 {
-  static int16_t control_messages[3] = {0,0,0};
-  control_messages[0] = dio_messages_received;
-  control_messages[1] = dis_messages_received;
-  control_messages[2] = dao_messages_received;
+  static int8_t control_messages[3] = {0,0,0};
+  //control_messages[0] = dio_messages_received;
+  //control_messages[1] = dis_messages_received;
+  //control_messages[2] = dao_messages_received;
+  control_messages[0] = nc_messages.DIO_counter;
+  control_messages[1] = nc_messages.DIS_counter;
+  control_messages[2] = nc_messages.DAO_counter;
   return control_messages;
 }
 
