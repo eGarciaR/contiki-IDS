@@ -89,9 +89,9 @@ typedef struct rpl_dao rpl_dao_t;
 typedef struct node_counter {
   struct node_counter *next;
   uip_ipaddr_t ipaddr;
-  int8_t DIO_counter;
-  int8_t DIS_counter;
-  int8_t DAO_counter;
+  uint8_t DIO_counter;
+  uint8_t DIS_counter;
+  uint8_t DAO_counter;
 } node_counter;
 
 bool IDS_NODE_SENSOR;
@@ -102,11 +102,9 @@ list_t node_stats_list;
 
 void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3]); /* SHOULD BE STATIC */
 
-void set_node_sensor();
+void init_IDS_node_sensor();
 
 void initialize_control_messages_received();
-
-/*int8_t * get_control_messages_count();*/
 
 /*------------------------------------------------------*/
 

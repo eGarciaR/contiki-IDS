@@ -29,7 +29,7 @@ PROCESS_THREAD(initialize_IDS, ev, data)
 {
   PROCESS_BEGIN();
   
-  set_node_sensor();
+  init_IDS_node_sensor();
   initialize_control_messages_received();
   
   PROCESS_END()

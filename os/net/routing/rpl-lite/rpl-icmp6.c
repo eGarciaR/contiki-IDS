@@ -715,7 +715,7 @@ initialize_control_messages_received()
 }
 
 void
-set_node_sensor()
+init_IDS_node_sensor()
 {
   IDS_NODE_SENSOR = true;
   memb_init(&nodes_list_memb);
