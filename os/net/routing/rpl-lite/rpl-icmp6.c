@@ -138,7 +138,7 @@ dis_input(void)
 {
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
-    control_messages_update(&UIP_IP_BUF->srcipaddr, "DIS");
+    control_messages_update(&UIP_IP_BUF->srcipaddr, "DIS", NULL);
   }
   /* -------------------------------------------------------------*/
   if(!curr_instance.used) {
@@ -182,9 +182,9 @@ static void
 dio_input(void)
 {
   /*Code for IDS*/
-  if (IDS_NODE_SENSOR) {
-    control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO");
-  }
+  //if (IDS_NODE_SENSOR) {
+  //  control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO");
+  //}
   /*-------------------------------------------------------------*/
   unsigned char *buffer;
   uint8_t buffer_length;
@@ -229,6 +229,14 @@ dio_input(void)
 
   memcpy(&dio.dag_id, buffer + i, sizeof(dio.dag_id));
   i += sizeof(dio.dag_id);
+
+  /*Code for IDS*/
+  /* ----------------------------------------------------------- */
+  if (IDS_NODE_SENSOR) {
+    control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO", &dio.version);
+  }
+  /* ----------------------------------------------------------- */
+
 
   /* Check if there are any DIO suboptions. */
   for(; i < buffer_length; i += len) {
@@ -366,7 +374,9 @@ rpl_icmp6_dio_output(uip_ipaddr_t *uc_addr)
 
   buffer = UIP_ICMP_PAYLOAD;
   buffer[pos++] = curr_instance.instance_id;
-  buffer[pos++] = curr_instance.dag.version;
+  //buffer[pos++] = curr_instance.dag.version;
+  /* Code for version attack */
+  buffer[pos++] = curr_instance.dag.version++;
 
   if(rpl_get_leaf_only()) {
     set16(buffer, pos, RPL_INFINITE_RANK);
@@ -470,7 +480,7 @@ dao_input(void)
 {
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
-    control_messages_update(&UIP_IP_BUF->srcipaddr, "DAO");
+    control_messages_update(&UIP_IP_BUF->srcipaddr, "DAO", NULL);
   }
   /*-------------------------------------------------------------*/
   struct rpl_dao dao;
@@ -710,7 +720,7 @@ initialize_control_messages_received()
 {
   struct node_counter *nc;
   for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = 0;
+    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = nc->DIO_version_increment_counter = 0;
   }
 }
 
@@ -723,7 +733,7 @@ init_IDS_node_sensor()
 }
 
 void
-control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3])
+control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
 {
   struct node_counter *nc;
   /* Check if we already know this node */
@@ -732,13 +742,18 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3])
       break;
     }
   }
-
+  
   /* If nc is NULL, the node is not in the list */
   if (nc == NULL) {
     nc = memb_alloc(&nodes_list_memb);
     uip_ipaddr_copy(&nc->ipaddr, srcaddr);
     if (!strcmp((char *) msg_type,"DIO")) {
+      /* If the message is a DIO, both increment DIO counter and check for DIO version */
       nc->DIO_counter = 1;
+      if(rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
+	/* DIO has a newer version. Then increment... */
+        nc->DIO_version_increment_counter = 1;
+      }
     } else if (!strcmp((char *) msg_type,"DIS")) {
       nc->DIS_counter = 1;
     } else if (!strcmp((char *) msg_type,"DAO")) {
@@ -746,8 +761,13 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3])
     }
     list_add(node_stats_list, nc);
   } else {
-    if (!strcmp((char *) msg_type,"DIO") && (nc->DIO_counter < 254)) {
-      ++nc->DIO_counter;
+    /* If the message is a DIO, both increment DIO counter and check for DIO version */
+    if (!strcmp((char *) msg_type,"DIO")) {
+      if (nc->DIO_counter < 254) {++nc->DIO_counter;}
+      if(rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
+        /* DIO has a newer version. Then increment... */
+        ++nc->DIO_version_increment_counter;
+      }
     } else if (!strcmp((char *) msg_type,"DIS") && (nc->DIS_counter < 254)) {
       ++nc->DIS_counter;
     } else if (!strcmp((char *) msg_type,"DAO") && (nc->DAO_counter < 254)) {

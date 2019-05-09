@@ -60,7 +60,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     bool alarm = false;
     for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-      LOG_INFO("DIO: %d, DIS: %d, DAO: %d \n",nc->DIO_counter, nc->DIS_counter, nc->DAO_counter);
+      LOG_INFO("DIO: %d, DIS: %d, DIO version: %d \n",nc->DIO_counter, nc->DIS_counter, nc->DIO_version_increment_counter);
+      /* HELLO FLOOD Attack */
       if (nc->DIO_counter > MAX_DIO_THRESHOLD) {
         alarm = true;
 	strcpy(da_sent.control,"alarm_DIO");
@@ -73,11 +74,14 @@ PROCESS_THREAD(udp_client_process, ev, data)
         alarm = true;
         strcpy(da_sent.control,"alarm_DAO");
         LOG_INFO("ALARM DAO: '%d'\n", nc->DAO_counter);
+      } else if (nc->DIO_version_increment_counter > MAX_DIO_VERSION_INCREMENT) {
+	/* Version number Attack */
+	alarm = true;
+	strcpy(da_sent.control,"alarm_VNU");
+	LOG_INFO("ALARM Version number: '%d'\n", nc->DIO_version_increment_counter);
       }
       
       if (alarm) {
-	LOG_INFO_6ADDR(&nc->ipaddr);
-        LOG_INFO_("\n");
         uip_ipaddr_copy(&da_sent.node_ipaddr, &nc->ipaddr);
 	break;
       }

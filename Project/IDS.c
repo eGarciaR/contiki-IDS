@@ -44,6 +44,10 @@ udp_rx_callback(struct simple_udp_connection *c,
     LOG_INFO("Received DAO alarm from ");
     LOG_INFO_6ADDR(&test->node_ipaddr);
     LOG_INFO_("\n");
+  } else if (!strcmp((char *) test->control,"alarm_VNU")) { 
+    LOG_INFO("Received Version number attack from ");
+    LOG_INFO_6ADDR(&test->node_ipaddr);
+    LOG_INFO_("\n");
   } else {
     LOG_INFO("Unable to understand message from ");
     LOG_INFO_6ADDR(sender_addr);

@@ -92,6 +92,7 @@ typedef struct node_counter {
   uint8_t DIO_counter;
   uint8_t DIS_counter;
   uint8_t DAO_counter;
+  uint8_t DIO_version_increment_counter;
 } node_counter;
 
 bool IDS_NODE_SENSOR;
@@ -100,7 +101,7 @@ struct node_counter nc_messages;
 
 list_t node_stats_list;
 
-void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3]); /* SHOULD BE STATIC */
+void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux); /* SHOULD BE STATIC */
 
 void init_IDS_node_sensor();
 
