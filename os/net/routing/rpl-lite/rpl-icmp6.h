@@ -92,7 +92,7 @@ typedef struct node_counter {
   uint8_t DIO_counter;
   uint8_t DIS_counter;
   uint8_t DAO_counter;
-  uint8_t DIO_version_increment_counter;
+  bool DIO_version_attack;
 } node_counter;
 
 bool IDS_NODE_SENSOR;

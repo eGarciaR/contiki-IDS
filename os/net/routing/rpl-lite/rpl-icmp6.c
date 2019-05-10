@@ -49,6 +49,8 @@
 #include "net/packetbuf.h"
 #include "lib/random.h"
 
+#include "net/ipv6/uiplib.h" /* Just added to printf IPv6 addresses */
+
 #include <limits.h>
 
 #include "lib/memb.h"
@@ -170,7 +172,7 @@ rpl_icmp6_dis_output(uip_ipaddr_t *addr)
   if(addr == NULL) {
     addr = &rpl_multicast_addr;
   }
-
+  
   LOG_INFO("sending a DIS to ");
   LOG_INFO_6ADDR(addr);
   LOG_INFO_("\n");
@@ -186,6 +188,7 @@ dio_input(void)
   //  control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO");
   //}
   /*-------------------------------------------------------------*/
+
   unsigned char *buffer;
   uint8_t buffer_length;
   rpl_dio_t dio;
@@ -374,9 +377,9 @@ rpl_icmp6_dio_output(uip_ipaddr_t *uc_addr)
 
   buffer = UIP_ICMP_PAYLOAD;
   buffer[pos++] = curr_instance.instance_id;
-  //buffer[pos++] = curr_instance.dag.version;
+  buffer[pos++] = curr_instance.dag.version;
   /* Code for version attack */
-  buffer[pos++] = curr_instance.dag.version++;
+  //buffer[pos++] = curr_instance.dag.version++;
 
   if(rpl_get_leaf_only()) {
     set16(buffer, pos, RPL_INFINITE_RANK);
@@ -720,8 +723,23 @@ initialize_control_messages_received()
 {
   struct node_counter *nc;
   for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = nc->DIO_version_increment_counter = 0;
+    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = 0;
+    nc->DIO_version_attack = false;
   }
+}
+
+static bool
+compare_ipv6_no_prefix(uip_ipaddr_t *addr1, uip_ipaddr_t *addr2)
+{
+  //char buf3[40], buf4[40];
+  //uiplib_ipaddr_snprint(buf3, sizeof(buf3), addr1);
+  //uiplib_ipaddr_snprint(buf4, sizeof(buf4), addr2);
+  //printf("Comp: %s, %s\n", buf3, buf4);
+  uint8_t i;
+  for(i=2;i<8;++i){
+    if ((addr1)->u16[i] != (addr2)->u16[i]) {return false;}
+  }
+  return true;
 }
 
 void
@@ -751,8 +769,13 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
       /* If the message is a DIO, both increment DIO counter and check for DIO version */
       nc->DIO_counter = 1;
       if(rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
-	/* DIO has a newer version. Then increment... */
-        nc->DIO_version_increment_counter = 1;
+	/* DIO has a newer version. Check if it was root: */
+	uip_ipaddr_t ip_root_cpy;
+	if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
+	  if (!uip_ipaddr_cmp(&ip_root_cpy,&nc->ipaddr)) {nc->DIO_version_attack = true;}
+	} else {
+	  printf("ERROR: Instance has no root");
+	}
       }
     } else if (!strcmp((char *) msg_type,"DIS")) {
       nc->DIS_counter = 1;
@@ -764,9 +787,16 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
     /* If the message is a DIO, both increment DIO counter and check for DIO version */
     if (!strcmp((char *) msg_type,"DIO")) {
       if (nc->DIO_counter < 254) {++nc->DIO_counter;}
-      if(rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
-        /* DIO has a newer version. Then increment... */
-        ++nc->DIO_version_increment_counter;
+      if((*(int *)aux > curr_instance.dag.version)) {
+        /* DIO has a newer version. Check if it was root: */
+	uip_ipaddr_t ip_root_cpy;
+        if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
+	  if (!compare_ipv6_no_prefix(&ip_root_cpy,&nc->ipaddr)) {
+	    nc->DIO_version_attack = true;
+	  }
+        } else {
+          printf("ERROR: Instance has no root");
+        }
       }
     } else if (!strcmp((char *) msg_type,"DIS") && (nc->DIS_counter < 254)) {
       ++nc->DIS_counter;

@@ -11,6 +11,8 @@
 
 #include "sys/energest.h"
 
+#include "net/ipv6/uiplib.h" /* Just added to printf IPv6 addresses */
+
 #define LOG_MODULE "Node"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
@@ -26,7 +28,7 @@ static struct data_sent da_sent;
 PROCESS(initialize_IDS, "Initialize IDS");
 PROCESS(udp_client_process, "UDP client");
 PROCESS(energest_process, "Init monitoring");
-AUTOSTART_PROCESSES(&initialize_IDS, &udp_client_process, &energest_process);
+AUTOSTART_PROCESSES(&initialize_IDS, &udp_client_process/*, &energest_process*/);
 /*---------------------------------------------------------------------------*/
 
 static inline unsigned long
@@ -60,7 +62,9 @@ PROCESS_THREAD(udp_client_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     bool alarm = false;
     for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-      LOG_INFO("DIO: %d, DIS: %d, DIO version: %d \n",nc->DIO_counter, nc->DIS_counter, nc->DIO_version_increment_counter);
+      char buf[40];
+      uiplib_ipaddr_snprint(buf, sizeof(buf), &nc->ipaddr);
+      LOG_INFO("IP: %s,DIO: %d, DIS: %d, DIO version attack?: %s \n",buf, nc->DIO_counter, nc->DIS_counter, nc->DIO_version_attack ? "true" : "false");
       /* HELLO FLOOD Attack */
       if (nc->DIO_counter > MAX_DIO_THRESHOLD) {
         alarm = true;
@@ -74,11 +78,13 @@ PROCESS_THREAD(udp_client_process, ev, data)
         alarm = true;
         strcpy(da_sent.control,"alarm_DAO");
         LOG_INFO("ALARM DAO: '%d'\n", nc->DAO_counter);
-      } else if (nc->DIO_version_increment_counter > MAX_DIO_VERSION_INCREMENT) {
+      } else if (nc->DIO_version_attack) {
 	/* Version number Attack */
 	alarm = true;
 	strcpy(da_sent.control,"alarm_VNU");
-	LOG_INFO("ALARM Version number: '%d'\n", nc->DIO_version_increment_counter);
+	LOG_INFO("ALARM Version number attack received from: ");
+	LOG_INFO_6ADDR(&nc->ipaddr);
+        LOG_INFO_("\n");
       }
       
       if (alarm) {

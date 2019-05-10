@@ -12,9 +12,6 @@
 #define MAX_DIS_THRESHOLD 20
 #define MAX_DAO_THRESHOLD 10
 
-#define MAX_DIO_VERSION_INCREMENT 2
-
-
 /*Struct to send control data to IDS*/
 typedef struct data_sent{
   char control[10];

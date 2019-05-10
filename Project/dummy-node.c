@@ -30,7 +30,7 @@ PROCESS_THREAD(dummy_process, ev, data)
 
     energest_flush();
 
-    printf("\nEnergest:\n");
+    /*printf("\nEnergest:\n");
     printf(" CPU          %4lus LPM      %4lus DEEP LPM %4lus  Total time %lus\n",
            to_seconds(energest_type_time(ENERGEST_TYPE_CPU)),
            to_seconds(energest_type_time(ENERGEST_TYPE_LPM)),
@@ -41,7 +41,7 @@ PROCESS_THREAD(dummy_process, ev, data)
            to_seconds(energest_type_time(ENERGEST_TYPE_TRANSMIT)),
            to_seconds(ENERGEST_GET_TOTAL_TIME()
                       - energest_type_time(ENERGEST_TYPE_TRANSMIT)
-- energest_type_time(ENERGEST_TYPE_LISTEN)));
+- energest_type_time(ENERGEST_TYPE_LISTEN)));*/
 
   }
 
