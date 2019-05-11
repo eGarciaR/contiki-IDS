@@ -660,7 +660,6 @@ tcpip_ipv6_output(void)
     linkaddr = NULL;
     goto send_packet;
   }
-
   /* We first check if the destination address is one of ours. There is no
    * loopback interface -- instead, process this directly as incoming. */
   if(uip_ds6_is_my_addr(&UIP_IP_BUF->destipaddr)) {

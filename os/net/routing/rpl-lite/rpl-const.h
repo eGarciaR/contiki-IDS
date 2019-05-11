@@ -101,6 +101,9 @@
 #define RPL_CODE_SEC_DAO               0x82   /* Secure DAO */
 #define RPL_CODE_SEC_DAO_ACK           0x83   /* Secure DAO-ACK */
 
+/* Node IDS messages */
+#define RPL_CODE_NODE_IDS              0x04   /* Node IDS message */
+
 /* RPL control message options. */
 #define RPL_OPTION_PAD1                  0
 #define RPL_OPTION_PADN                  1

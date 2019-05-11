@@ -67,7 +67,13 @@
 #define RPL_DIO_PREFERENCE_MASK          0x07
 /*---------------------------------------------------------------------------*/
 /* Allocate memory for nodes list (IDS CODE)*/
-MEMB(nodes_list_memb, struct node_counter, 10);
+MEMB(nodes_list_memb, struct node_counter, 16);
+
+/* Create input function to handle IDS messages */
+static void node_ids_input(void);
+
+/* Initialize IDS node messages handler */
+UIP_ICMP6_HANDLER(node_ids_handler, ICMP6_RPL, RPL_CODE_NODE_IDS, node_ids_input);
 
 /*---------------------------------------------------------------------------*/
 static void dis_input(void);
@@ -188,7 +194,6 @@ dio_input(void)
   //  control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO");
   //}
   /*-------------------------------------------------------------*/
-
   unsigned char *buffer;
   uint8_t buffer_length;
   rpl_dio_t dio;
@@ -714,18 +719,44 @@ rpl_icmp6_init()
 #if RPL_WITH_DAO_ACK
   uip_icmp6_register_input_handler(&dao_ack_handler);
 #endif /* RPL_WITH_DAO_ACK */
+
+  /* Init Node IDS Message handler */
+  uip_icmp6_register_input_handler(&node_ids_handler);
 }
 /*---------------------------------------------------------------------------*/
 
 /*Additional code and variables for IDS implementation*/
-void
-initialize_control_messages_received()
+
+static void 
+node_ids_input(void)
 {
-  struct node_counter *nc;
-  for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = 0;
-    nc->DIO_version_attack = false;
-  }
+
+  unsigned char *buffer;
+  char control[10];
+  uip_ipaddr_t node_ipaddr;
+  uip_ipaddr_t from;
+  uint8_t i;
+
+  /* Process Node IDS message */
+  i = 0;
+  buffer = UIP_ICMP_PAYLOAD;
+  //strcpy(control,buffer);
+  memcpy(control,buffer,10);
+  i += 10;
+  //uip_ipaddr_copy(&node_ipaddr, buffer + 10);
+  memcpy(&node_ipaddr, buffer + i, 16);
+  uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
+
+  char buf3[40], buf4[40];
+  uiplib_ipaddr_snprint(buf3, sizeof(buf3), &node_ipaddr);
+  uiplib_ipaddr_snprint(buf4, sizeof(buf4), &from);
+  printf("IDS_INPUT: %s, %s, %s\n", control, buf3, buf4);
+
+  LOG_INFO("received a Node IDS message from ");
+  LOG_INFO_6ADDR(&from);
+  LOG_INFO_("\n");
+
+  uipbuf_clear();
 }
 
 static bool
@@ -740,6 +771,40 @@ compare_ipv6_no_prefix(uip_ipaddr_t *addr1, uip_ipaddr_t *addr2)
     if ((addr1)->u16[i] != (addr2)->u16[i]) {return false;}
   }
   return true;
+}
+
+void
+rpl_icmp6_node_ids_output(uip_ipaddr_t *to, const void *data, uint16_t datalen)
+{
+  unsigned char *buffer;
+  uint8_t pos;
+  const data_sent *da_sent = (data_sent *) data;
+
+  /* Make sure we're up-to-date before sending data out */
+  rpl_dag_update_state();
+
+  pos = 10;
+
+  buffer = UIP_ICMP_PAYLOAD;
+  memcpy(buffer, &da_sent->control, pos);
+  memcpy(buffer + pos, &da_sent->node_ipaddr, 16);
+  pos += 16;
+
+  LOG_INFO("sending a Node IDS Message to ");
+  LOG_INFO_6ADDR(to);
+  LOG_INFO_("\n");
+
+  uip_icmp6_send(to, ICMP6_RPL, RPL_CODE_NODE_IDS, pos);
+}
+
+void
+initialize_control_messages_received()
+{
+  struct node_counter *nc;
+  for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
+    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = 0;
+    nc->DIO_version_attack = false;
+  }
 }
 
 void

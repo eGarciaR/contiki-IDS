@@ -68,8 +68,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
       /* HELLO FLOOD Attack */
       if (nc->DIO_counter > MAX_DIO_THRESHOLD) {
         alarm = true;
-	strcpy(da_sent.control,"alarm_DIO");
-	LOG_INFO("ALARM DIO: '%d'\n", nc->DIO_counter);
+	      strcpy(da_sent.control,"alarm_DIO");
+	      LOG_INFO("ALARM DIO: '%d'\n", nc->DIO_counter);
       } else if (nc->DIS_counter > MAX_DIS_THRESHOLD) {
         alarm = true;
         strcpy(da_sent.control,"alarm_DIS");
@@ -79,30 +79,41 @@ PROCESS_THREAD(udp_client_process, ev, data)
         strcpy(da_sent.control,"alarm_DAO");
         LOG_INFO("ALARM DAO: '%d'\n", nc->DAO_counter);
       } else if (nc->DIO_version_attack) {
-	/* Version number Attack */
-	alarm = true;
-	strcpy(da_sent.control,"alarm_VNU");
-	LOG_INFO("ALARM Version number attack received from: ");
-	LOG_INFO_6ADDR(&nc->ipaddr);
-        LOG_INFO_("\n");
+	      /* Version number Attack */
+	      alarm = true;
+	     strcpy(da_sent.control,"alarm_VNU");
+	     LOG_INFO("ALARM Version number attack received from: ");
+	     LOG_INFO_6ADDR(&nc->ipaddr);
+       LOG_INFO_("\n");
       }
       
       if (alarm) {
         uip_ipaddr_copy(&da_sent.node_ipaddr, &nc->ipaddr);
-	break;
+	      break;
       }
     }
     if (alarm) {
       if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) {
         /* Send to DAG root */
-	simple_udp_sendto(&udp_conn, &da_sent, sizeof(da_sent), &dest_ipaddr);
+	      simple_udp_sendto(&udp_conn, &da_sent, sizeof(da_sent), &dest_ipaddr);
         LOG_INFO("Alarm sent\n");
-	initialize_control_messages_received();
+	      initialize_control_messages_received();
       } else {
-	LOG_INFO("Not reachable yet\n");
+	      LOG_INFO("Not reachable yet\n");
       }
     } else {
       initialize_control_messages_received();
+    }
+    if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) {
+      /* Send to DAG root */
+      printf("TRYING TO SEND MESSAGE...\n");
+      strcpy(da_sent.control,"TEST_1234");
+      uip_ipaddr_copy(&da_sent.node_ipaddr, &dest_ipaddr);
+      rpl_icmp6_node_ids_output(&dest_ipaddr, &da_sent, sizeof(da_sent));
+      LOG_INFO("MESSAGE SENT\n");
+      //initialize_control_messages_received();
+    } else {
+      LOG_INFO("MESSAGE NOT SENT\n");
     }
 
     /* Add some jitter */

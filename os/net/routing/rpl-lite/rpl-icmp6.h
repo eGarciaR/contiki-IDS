@@ -85,6 +85,11 @@ struct rpl_dao {
 typedef struct rpl_dao rpl_dao_t;
 
 /*Additional code and variables for IDS implementation*/
+/*Struct to send control data to IDS*/
+typedef struct data_sent{
+  char control[10];
+  uip_ipaddr_t node_ipaddr;
+} data_sent;
 
 typedef struct node_counter {
   struct node_counter *next;
@@ -100,6 +105,8 @@ bool IDS_NODE_SENSOR;
 struct node_counter nc_messages;
 
 list_t node_stats_list;
+
+void rpl_icmp6_node_ids_output(uip_ipaddr_t *to, const void *data, uint16_t datalen);
 
 void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux); /* SHOULD BE STATIC */
 

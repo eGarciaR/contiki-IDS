@@ -13,10 +13,10 @@
 #define MAX_DAO_THRESHOLD 10
 
 /*Struct to send control data to IDS*/
-typedef struct data_sent{
+/*typedef struct data_sent{
   char control[10];
   uip_ipaddr_t node_ipaddr;
-} data_sent;
+} data_sent;*/
 
 /*Struct to store node stats*/
 typedef struct node_stats{

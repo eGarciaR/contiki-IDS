@@ -3,6 +3,8 @@
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
 
+#include "net/routing/rpl-lite/rpl.h"
+
 #include "sys/log.h"
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
