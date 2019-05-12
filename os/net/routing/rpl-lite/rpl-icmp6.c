@@ -726,10 +726,40 @@ rpl_icmp6_init()
 /*---------------------------------------------------------------------------*/
 
 /*Additional code and variables for IDS implementation*/
+static void
+handle_IDS_alarms(char desc[10], uip_ipaddr_t *malicious_ip, uip_ipaddr_t *ids_node_ip)
+{
+  char buf[40];
+  if (!strcmp(desc,"alarm_DIO")) {
+    printf("Received DIO alarm from ");
+    uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
+    printf("\n");
+  } else if (!strcmp(desc,"alarm_DIS")) {
+    printf("Received DIS alarm from ");
+    uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
+    printf("\n");
+  } else if (!strcmp(desc,"alarm_DAO")) {
+    printf("Received DAO alarm from ");
+    uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
+    printf("\n");
+  } else if (!strcmp(desc,"alarm_VNU")) { 
+    printf("Received Version number attack from ");
+    uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
+    printf("\n");
+  } else {
+    printf("Unable to understand message from ");
+    uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
+    printf("\n");
+  }
+}
 
 static void 
 node_ids_input(void)
 {
+
+  if (!IDS_SERVER) {
+    return;
+  }
 
   unsigned char *buffer;
   char control[10];
@@ -740,12 +770,12 @@ node_ids_input(void)
   /* Process Node IDS message */
   i = 0;
   buffer = UIP_ICMP_PAYLOAD;
-  //strcpy(control,buffer);
   memcpy(control,buffer,10);
   i += 10;
-  //uip_ipaddr_copy(&node_ipaddr, buffer + 10);
   memcpy(&node_ipaddr, buffer + i, 16);
   uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
+
+  handle_IDS_alarms(control, &node_ipaddr, &from);
 
   char buf3[40], buf4[40];
   uiplib_ipaddr_snprint(buf3, sizeof(buf3), &node_ipaddr);
@@ -762,10 +792,6 @@ node_ids_input(void)
 static bool
 compare_ipv6_no_prefix(uip_ipaddr_t *addr1, uip_ipaddr_t *addr2)
 {
-  //char buf3[40], buf4[40];
-  //uiplib_ipaddr_snprint(buf3, sizeof(buf3), addr1);
-  //uiplib_ipaddr_snprint(buf4, sizeof(buf4), addr2);
-  //printf("Comp: %s, %s\n", buf3, buf4);
   uint8_t i;
   for(i=2;i<8;++i){
     if ((addr1)->u16[i] != (addr2)->u16[i]) {return false;}
@@ -777,24 +803,22 @@ void
 rpl_icmp6_node_ids_output(uip_ipaddr_t *to, const void *data, uint16_t datalen)
 {
   unsigned char *buffer;
-  uint8_t pos;
   const data_sent *da_sent = (data_sent *) data;
 
   /* Make sure we're up-to-date before sending data out */
   rpl_dag_update_state();
 
-  pos = 10;
-
   buffer = UIP_ICMP_PAYLOAD;
-  memcpy(buffer, &da_sent->control, pos);
-  memcpy(buffer + pos, &da_sent->node_ipaddr, 16);
-  pos += 16;
+  /* Copy to buffer 10 characters */
+  memcpy(buffer, &da_sent->control, 10);
+  /* Copy to buffer an IPv6 address */
+  memcpy(buffer + 10, &da_sent->node_ipaddr, 16);
 
   LOG_INFO("sending a Node IDS Message to ");
   LOG_INFO_6ADDR(to);
   LOG_INFO_("\n");
 
-  uip_icmp6_send(to, ICMP6_RPL, RPL_CODE_NODE_IDS, pos);
+  uip_icmp6_send(to, ICMP6_RPL, RPL_CODE_NODE_IDS, datalen);
 }
 
 void
@@ -805,6 +829,12 @@ initialize_control_messages_received()
     nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = 0;
     nc->DIO_version_attack = false;
   }
+}
+
+void
+init_IDS_server()
+{
+  IDS_SERVER = true;
 }
 
 void

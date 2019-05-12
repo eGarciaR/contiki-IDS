@@ -25,10 +25,10 @@ static struct simple_udp_connection udp_conn;
 static struct data_sent da_sent;
 
 /*---------------------------------------------------------------------------*/
-PROCESS(initialize_IDS, "Initialize IDS");
+PROCESS(initialize_IDS_node, "Initialize IDS Node");
 PROCESS(udp_client_process, "UDP client");
 PROCESS(energest_process, "Init monitoring");
-AUTOSTART_PROCESSES(&initialize_IDS, &udp_client_process/*, &energest_process*/);
+AUTOSTART_PROCESSES(&initialize_IDS_node, &udp_client_process/*, &energest_process*/);
 /*---------------------------------------------------------------------------*/
 
 static inline unsigned long
@@ -37,7 +37,7 @@ to_seconds(uint64_t time)
   return (unsigned long)(time / ENERGEST_SECOND);
 }
 
-PROCESS_THREAD(initialize_IDS, ev, data)
+PROCESS_THREAD(initialize_IDS_node, ev, data)
 {
   PROCESS_BEGIN();
   
@@ -50,7 +50,6 @@ PROCESS_THREAD(initialize_IDS, ev, data)
 PROCESS_THREAD(udp_client_process, ev, data)
 {
   static struct etimer periodic_timer;
-  uip_ipaddr_t dest_ipaddr;
   struct node_counter *nc; 
   PROCESS_BEGIN();
   
@@ -93,27 +92,16 @@ PROCESS_THREAD(udp_client_process, ev, data)
       }
     }
     if (alarm) {
-      if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) {
-        /* Send to DAG root */
-	      simple_udp_sendto(&udp_conn, &da_sent, sizeof(da_sent), &dest_ipaddr);
+      uip_ipaddr_t ip_root_cpy;
+      if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
+        rpl_icmp6_node_ids_output(&ip_root_cpy, &da_sent, sizeof(da_sent));
         LOG_INFO("Alarm sent\n");
-	      initialize_control_messages_received();
+        initialize_control_messages_received();
       } else {
-	      LOG_INFO("Not reachable yet\n");
+        printf("ERROR: Instance has no root");
       }
     } else {
       initialize_control_messages_received();
-    }
-    if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) {
-      /* Send to DAG root */
-      printf("TRYING TO SEND MESSAGE...\n");
-      strcpy(da_sent.control,"TEST_1234");
-      uip_ipaddr_copy(&da_sent.node_ipaddr, &dest_ipaddr);
-      rpl_icmp6_node_ids_output(&dest_ipaddr, &da_sent, sizeof(da_sent));
-      LOG_INFO("MESSAGE SENT\n");
-      //initialize_control_messages_received();
-    } else {
-      LOG_INFO("MESSAGE NOT SENT\n");
     }
 
     /* Add some jitter */
