@@ -731,25 +731,20 @@ handle_IDS_alarms(char desc[10], uip_ipaddr_t *malicious_ip, uip_ipaddr_t *ids_n
 {
   char buf[40];
   if (!strcmp(desc,"alarm_DIO")) {
-    printf("Received DIO alarm from ");
     uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
-    printf("\n");
+    printf("Received DIO alarm from: %s\n", buf);
   } else if (!strcmp(desc,"alarm_DIS")) {
-    printf("Received DIS alarm from ");
     uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
-    printf("\n");
+    printf("Received DIS alarm from: %s\n", buf);
   } else if (!strcmp(desc,"alarm_DAO")) {
-    printf("Received DAO alarm from ");
     uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
-    printf("\n");
+    printf("Received DAO alarm from: %s\n", buf);
   } else if (!strcmp(desc,"alarm_VNU")) { 
-    printf("Received Version number attack from ");
     uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
-    printf("\n");
+    printf("Received Version number attack from: %s\n", buf);
   } else {
-    printf("Unable to understand message from ");
-    uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
-    printf("\n");
+    uiplib_ipaddr_snprint(buf, sizeof(buf), ids_node_ip);
+    printf("Unable to understand message from: %s\n", buf);
   }
 }
 
@@ -776,11 +771,6 @@ node_ids_input(void)
   uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
 
   handle_IDS_alarms(control, &node_ipaddr, &from);
-
-  char buf3[40], buf4[40];
-  uiplib_ipaddr_snprint(buf3, sizeof(buf3), &node_ipaddr);
-  uiplib_ipaddr_snprint(buf4, sizeof(buf4), &from);
-  printf("IDS_INPUT: %s, %s, %s\n", control, buf3, buf4);
 
   LOG_INFO("received a Node IDS message from ");
   LOG_INFO_6ADDR(&from);
