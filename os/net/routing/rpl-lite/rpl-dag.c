@@ -402,7 +402,7 @@ process_dio_from_current_dag(uip_ipaddr_t *from, rpl_dio_t *dio)
   if(dio->rank < ROOT_RANK) {
     return;
   }
-
+  
   /* If the DIO sender is on an older version of the DAG, do not process it
    * further. The sender will eventually hear the global repair and catch up. */
   if(rpl_lollipop_greater_than(curr_instance.dag.version, dio->version)) {

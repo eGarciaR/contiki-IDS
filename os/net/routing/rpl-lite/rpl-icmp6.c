@@ -352,7 +352,7 @@ dio_input(void)
          (unsigned)dio.version,
          (unsigned)dio.dtsn,
          (unsigned)dio.rank);
-
+  
   rpl_process_dio(&from, &dio);
 
 discard:
@@ -853,14 +853,14 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
     if (!strcmp((char *) msg_type,"DIO")) {
       /* If the message is a DIO, both increment DIO counter and check for DIO version */
       nc->DIO_counter = 1;
-      if(rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
-	/* DIO has a newer version. Check if it was root: */
-	uip_ipaddr_t ip_root_cpy;
-	if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
-	  if (!uip_ipaddr_cmp(&ip_root_cpy,&nc->ipaddr)) {nc->DIO_version_attack = true;}
-	} else {
-	  printf("ERROR: Instance has no root");
-	}
+      if (rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
+	      /* DIO has a newer version. Check if it was root: */
+	      uip_ipaddr_t ip_root_cpy;
+	      if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
+	        if (!uip_ipaddr_cmp(&ip_root_cpy,&nc->ipaddr)) {nc->DIO_version_attack = true;}
+	      } else {
+	        printf("ERROR: Instance has no root\n");
+	      }
       }
     } else if (!strcmp((char *) msg_type,"DIS")) {
       nc->DIS_counter = 1;
@@ -872,15 +872,18 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
     /* If the message is a DIO, both increment DIO counter and check for DIO version */
     if (!strcmp((char *) msg_type,"DIO")) {
       if (nc->DIO_counter < 254) {++nc->DIO_counter;}
-      if((*(int *)aux > curr_instance.dag.version)) {
+      /* If the DIO sender is on an older version of the DAG, do not process it
+      * further. The sender will eventually hear the global repair and catch up. */
+      if(rpl_lollipop_greater_than(curr_instance.dag.version, *(int *)aux)) {
+        return;
+      }
+      if (rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
         /* DIO has a newer version. Check if it was root: */
-	uip_ipaddr_t ip_root_cpy;
+	      uip_ipaddr_t ip_root_cpy;
         if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
-	  if (!compare_ipv6_no_prefix(&ip_root_cpy,&nc->ipaddr)) {
-	    nc->DIO_version_attack = true;
-	  }
+	        if (!compare_ipv6_no_prefix(&ip_root_cpy,&nc->ipaddr)) {nc->DIO_version_attack = true;}
         } else {
-          printf("ERROR: Instance has no root");
+          printf("ERROR: Instance has no root\n");
         }
       }
     } else if (!strcmp((char *) msg_type,"DIS") && (nc->DIS_counter < 254)) {

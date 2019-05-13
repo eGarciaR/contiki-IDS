@@ -91,6 +91,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
 	      break;
       }
     }
+    LOG_INFO("---------------------------------------------------------------\n");
     if (alarm) {
       uip_ipaddr_t ip_root_cpy;
       if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
@@ -98,7 +99,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
         LOG_INFO("Alarm sent\n");
         initialize_control_messages_received();
       } else {
-        printf("ERROR: Instance has no root");
+        printf("ERROR: Instance has no root\n");
       }
     } else {
       initialize_control_messages_received();
