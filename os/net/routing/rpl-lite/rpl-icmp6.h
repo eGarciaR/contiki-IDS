@@ -100,6 +100,11 @@ typedef struct node_counter {
   bool DIO_version_attack;
 } node_counter;
 
+typedef struct ids_sensor_list {
+  struct ids_sensor_list *next;
+  uip_ipaddr_t ipaddr;
+} ids_sensor_list;
+
 bool IDS_SERVER;
 bool IDS_NODE_SENSOR;
 bool DISCOVERY_ACK;

@@ -68,6 +68,7 @@
 /*---------------------------------------------------------------------------*/
 /* Allocate memory for nodes list (IDS CODE)*/
 MEMB(nodes_list_memb, struct node_counter, 16);
+MEMB(ids_sensor_list_memb, struct ids_sensor_list, 16);
 
 /* Create input functions to handle IDS messages */
 static void node_ids_input(void);
@@ -776,9 +777,12 @@ node_ids_input(void)
   uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
   if (!strcmp(control,"DISCOVERY")) {
     printf("Discovery received\n");
-    DISCOVERY_ACK = true;
     uipbuf_clear();
+    char buf[40];
+    uiplib_ipaddr_snprint(buf, sizeof(buf), &from);
+    printf("Received Sensor ids from: %s\n", buf);
     uip_icmp6_send(&from, ICMP6_RPL, RPL_CODE_IDS_ACK, 0);
+    //uipbuf_clear();
     return;
   }
 
@@ -797,9 +801,11 @@ static void
 ids_ack_input(void)
 {
   if (!IDS_NODE_SENSOR) {
+    uipbuf_clear();
     return;
   }
   DISCOVERY_ACK = true;
+  uipbuf_clear();
 }
 
 static bool
@@ -858,6 +864,7 @@ void
 init_IDS_server()
 {
   IDS_SERVER = true;
+  memb_init(&ids_sensor_list_memb);
 }
 
 void

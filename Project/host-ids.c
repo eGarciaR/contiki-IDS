@@ -36,14 +36,14 @@ to_seconds(uint64_t time)
 
 PROCESS_THREAD(initialize_IDS_node, ev, data)
 {
-  static struct etimer periodic_timer;
+  static struct etimer et;
   PROCESS_BEGIN();
   
   init_IDS_node_sensor();
   initialize_control_messages_received();
-  etimer_set(&periodic_timer, random_rand() % DISCOVERY_SEND_INTERVAL);
+  etimer_set(&et, 20 * CLOCK_SECOND);
   while(1) {
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
     if (!discovery_ack_received()) {
       // SEND MESSAGE AGAIN
       uip_ipaddr_t ip_root_cpy;
@@ -60,9 +60,8 @@ PROCESS_THREAD(initialize_IDS_node, ev, data)
       process_start(&ids_node_client_process, NULL);
       break;
     }
-    /* Add some jitter */
-    etimer_set(&periodic_timer, DISCOVERY_SEND_INTERVAL
-      - CLOCK_SECOND + (random_rand() % (2 * CLOCK_SECOND)));
+    printf("RESET TIMER\n");
+    etimer_reset(&et);
   }
   
   PROCESS_END()
