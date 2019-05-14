@@ -103,6 +103,7 @@
 
 /* Node IDS messages */
 #define RPL_CODE_NODE_IDS              0x04   /* Node IDS message */
+#define RPL_CODE_IDS_ACK               0x05   /* Send ACK */
 
 /* RPL control message options. */
 #define RPL_OPTION_PAD1                  0

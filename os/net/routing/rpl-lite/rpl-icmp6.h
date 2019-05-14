@@ -102,18 +102,19 @@ typedef struct node_counter {
 
 bool IDS_SERVER;
 bool IDS_NODE_SENSOR;
+bool DISCOVERY_ACK;
 
 struct node_counter nc_messages;
 
 list_t node_stats_list;
 
-void rpl_icmp6_node_ids_output(uip_ipaddr_t *to, const void *data, uint16_t datalen);
-
-void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux); /* SHOULD BE STATIC */
+void rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t datalen);
 
 void init_IDS_server();
 
 void init_IDS_node_sensor();
+
+bool discovery_ack_received();
 
 void initialize_control_messages_received();
 

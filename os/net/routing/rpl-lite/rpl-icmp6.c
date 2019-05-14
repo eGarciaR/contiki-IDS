@@ -69,11 +69,16 @@
 /* Allocate memory for nodes list (IDS CODE)*/
 MEMB(nodes_list_memb, struct node_counter, 16);
 
-/* Create input function to handle IDS messages */
+/* Create input functions to handle IDS messages */
 static void node_ids_input(void);
+static void ids_ack_input(void);
+
+/* Create function to control received messages */
+static void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux);
 
 /* Initialize IDS node messages handler */
 UIP_ICMP6_HANDLER(node_ids_handler, ICMP6_RPL, RPL_CODE_NODE_IDS, node_ids_input);
+UIP_ICMP6_HANDLER(ids_ack_handler, ICMP6_RPL, RPL_CODE_IDS_ACK, ids_ack_input);
 
 /*---------------------------------------------------------------------------*/
 static void dis_input(void);
@@ -722,6 +727,7 @@ rpl_icmp6_init()
 
   /* Init Node IDS Message handler */
   uip_icmp6_register_input_handler(&node_ids_handler);
+  uip_icmp6_register_input_handler(&ids_ack_handler);
 }
 /*---------------------------------------------------------------------------*/
 
@@ -767,8 +773,16 @@ node_ids_input(void)
   buffer = UIP_ICMP_PAYLOAD;
   memcpy(control,buffer,10);
   i += 10;
-  memcpy(&node_ipaddr, buffer + i, 16);
   uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
+  if (!strcmp(control,"DISCOVERY")) {
+    printf("Discovery received\n");
+    DISCOVERY_ACK = true;
+    uipbuf_clear();
+    uip_icmp6_send(&from, ICMP6_RPL, RPL_CODE_IDS_ACK, 0);
+    return;
+  }
+
+  memcpy(&node_ipaddr, buffer + i, 16);
 
   handle_IDS_alarms(control, &node_ipaddr, &from);
 
@@ -777,6 +791,15 @@ node_ids_input(void)
   LOG_INFO_("\n");
 
   uipbuf_clear();
+}
+
+static void
+ids_ack_input(void)
+{
+  if (!IDS_NODE_SENSOR) {
+    return;
+  }
+  DISCOVERY_ACK = true;
 }
 
 static bool
@@ -790,19 +813,29 @@ compare_ipv6_no_prefix(uip_ipaddr_t *addr1, uip_ipaddr_t *addr2)
 }
 
 void
-rpl_icmp6_node_ids_output(uip_ipaddr_t *to, const void *data, uint16_t datalen)
+rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t datalen)
 {
   unsigned char *buffer;
-  const data_sent *da_sent = (data_sent *) data;
-
+  const data_sent *da_sent;
   /* Make sure we're up-to-date before sending data out */
   rpl_dag_update_state();
 
   buffer = UIP_ICMP_PAYLOAD;
-  /* Copy to buffer 10 characters */
-  memcpy(buffer, &da_sent->control, 10);
-  /* Copy to buffer an IPv6 address */
-  memcpy(buffer + 10, &da_sent->node_ipaddr, 16);
+
+  switch (code) {
+    case 0:
+      memcpy(buffer, data, 10);
+      break;
+    case 1:
+      da_sent = (data_sent *) data;
+      /* Copy to buffer 10 characters */
+      memcpy(buffer, &da_sent->control, 10);
+      /* Copy to buffer an IPv6 address */
+      memcpy(buffer + 10, &da_sent->node_ipaddr, 16);
+      break;
+    default:
+      printf("Unable to handle code\n");
+  }
 
   LOG_INFO("sending a Node IDS Message to ");
   LOG_INFO_6ADDR(to);
@@ -835,7 +868,13 @@ init_IDS_node_sensor()
   list_init(node_stats_list);
 }
 
-void
+bool
+discovery_ack_received()
+{
+  return DISCOVERY_ACK;
+}
+
+static void
 control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
 {
   struct node_counter *nc;

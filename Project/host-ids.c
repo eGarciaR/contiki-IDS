@@ -16,19 +16,16 @@
 #define LOG_MODULE "Node"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-#define UDP_CLIENT_PORT	8765
-#define UDP_SERVER_PORT	5678
-
+#define DISCOVERY_SEND_INTERVAL (20 * CLOCK_SECOND)
 #define SEND_INTERVAL		  (60 * CLOCK_SECOND)
 
-static struct simple_udp_connection udp_conn;
 static struct data_sent da_sent;
 
 /*---------------------------------------------------------------------------*/
 PROCESS(initialize_IDS_node, "Initialize IDS Node");
-PROCESS(udp_client_process, "UDP client");
+PROCESS(ids_node_client_process, "IDS Node client");
 PROCESS(energest_process, "Init monitoring");
-AUTOSTART_PROCESSES(&initialize_IDS_node, &udp_client_process/*, &energest_process*/);
+AUTOSTART_PROCESSES(&initialize_IDS_node/*, &ids_node_client_process*//*, &energest_process*/);
 /*---------------------------------------------------------------------------*/
 
 static inline unsigned long
@@ -39,23 +36,45 @@ to_seconds(uint64_t time)
 
 PROCESS_THREAD(initialize_IDS_node, ev, data)
 {
+  static struct etimer periodic_timer;
   PROCESS_BEGIN();
   
   init_IDS_node_sensor();
   initialize_control_messages_received();
+  etimer_set(&periodic_timer, random_rand() % DISCOVERY_SEND_INTERVAL);
+  while(1) {
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+    if (!discovery_ack_received()) {
+      // SEND MESSAGE AGAIN
+      uip_ipaddr_t ip_root_cpy;
+      if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
+        char message[10];
+        strcpy(message,"DISCOVERY");
+        rpl_icmp6_node_ids_output(&ip_root_cpy, 0, &message, sizeof(message));
+        LOG_INFO("Discovery sent\n");
+      } else {
+        printf("ERROR: Instance has no root\n");
+      }
+    } else {
+      printf("IDS Ack received\n");
+      process_start(&ids_node_client_process, NULL);
+      break;
+    }
+    /* Add some jitter */
+    etimer_set(&periodic_timer, DISCOVERY_SEND_INTERVAL
+      - CLOCK_SECOND + (random_rand() % (2 * CLOCK_SECOND)));
+  }
   
   PROCESS_END()
 }
 
-PROCESS_THREAD(udp_client_process, ev, data)
+PROCESS_THREAD(ids_node_client_process, ev, data)
 {
   static struct etimer periodic_timer;
   struct node_counter *nc; 
   PROCESS_BEGIN();
   
   /* Initialize UDP connection */
-  simple_udp_register(&udp_conn, UDP_CLIENT_PORT, NULL,
-                      UDP_SERVER_PORT, NULL);
   etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL);
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
@@ -93,9 +112,10 @@ PROCESS_THREAD(udp_client_process, ev, data)
     }
     LOG_INFO("---------------------------------------------------------------\n");
     if (alarm) {
+      // TODO: remove this. Do it from the first process. 
       uip_ipaddr_t ip_root_cpy;
       if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
-        rpl_icmp6_node_ids_output(&ip_root_cpy, &da_sent, sizeof(da_sent));
+        rpl_icmp6_node_ids_output(&ip_root_cpy, 1, &da_sent, sizeof(da_sent));
         LOG_INFO("Alarm sent\n");
         initialize_control_messages_received();
       } else {
