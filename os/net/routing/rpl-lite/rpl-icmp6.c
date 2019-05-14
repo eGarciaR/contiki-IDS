@@ -73,6 +73,7 @@ MEMB(ids_sensor_list_memb, struct ids_sensor_list, 16);
 /* Create input functions to handle IDS messages */
 static void node_ids_input(void);
 static void ids_ack_input(void);
+static void ids_retrieve_info_input(void);
 
 /* Create function to control received messages */
 static void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux);
@@ -80,6 +81,7 @@ static void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], voi
 /* Initialize IDS node messages handler */
 UIP_ICMP6_HANDLER(node_ids_handler, ICMP6_RPL, RPL_CODE_NODE_IDS, node_ids_input);
 UIP_ICMP6_HANDLER(ids_ack_handler, ICMP6_RPL, RPL_CODE_IDS_ACK, ids_ack_input);
+UIP_ICMP6_HANDLER(ids_retrieve_info_handler, ICMP6_RPL, RPL_CODE_IDS_INFO, ids_retrieve_info_input);
 
 /*---------------------------------------------------------------------------*/
 static void dis_input(void);
@@ -729,6 +731,7 @@ rpl_icmp6_init()
   /* Init Node IDS Message handler */
   uip_icmp6_register_input_handler(&node_ids_handler);
   uip_icmp6_register_input_handler(&ids_ack_handler);
+  uip_icmp6_register_input_handler(&ids_retrieve_info_handler);
 }
 /*---------------------------------------------------------------------------*/
 
@@ -758,7 +761,6 @@ handle_IDS_alarms(char desc[10], uip_ipaddr_t *malicious_ip, uip_ipaddr_t *ids_n
 static void 
 node_ids_input(void)
 {
-
   if (!IDS_SERVER) {
     return;
   }
@@ -776,13 +778,21 @@ node_ids_input(void)
   i += 10;
   uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
   if (!strcmp(control,"DISCOVERY")) {
+    /* Handle new sensor discovery */
     printf("Discovery received\n");
     uipbuf_clear();
-    char buf[40];
-    uiplib_ipaddr_snprint(buf, sizeof(buf), &from);
-    printf("Received Sensor ids from: %s\n", buf);
     uip_icmp6_send(&from, ICMP6_RPL, RPL_CODE_IDS_ACK, 0);
-    //uipbuf_clear();
+    struct ids_sensor_list *isl;
+    /* Check if we already know this sensor */
+    for(isl = list_head(ids_sensors_list); isl != NULL; isl = list_item_next(isl)) {
+      if (uip_ipaddr_cmp(&from,&isl->ipaddr)) {
+        return;
+      }
+    }
+    
+    isl = memb_alloc(&ids_sensor_list_memb);
+    uip_ipaddr_copy(&isl->ipaddr, &from);
+    list_add(ids_sensors_list, isl);
     return;
   }
 
@@ -808,6 +818,61 @@ ids_ack_input(void)
   uipbuf_clear();
 }
 
+static void 
+ids_retrieve_info_input(void)
+{
+  if (!IDS_NODE_SENSOR || !discovery_ack_received()) {
+    uipbuf_clear();
+    return;
+  }
+
+  bool alarm = false;
+  struct node_counter *nc;
+  static struct data_sent da_sent;
+
+  for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
+    char buf[40];
+    uiplib_ipaddr_snprint(buf, sizeof(buf), &nc->ipaddr);
+    printf("IP: %s, DIO: %d, DIS: %d, DIO version attack?: %s\n",buf, nc->DIO_counter, nc->DIS_counter, nc->DIO_version_attack ? "true" : "false");
+    /* HELLO FLOOD Attack */
+    if (nc->DIO_counter > MAX_DIO_THRESHOLD) {
+      alarm = true;
+      strcpy(da_sent.control,"alarm_DIO");
+      printf("ALARM DIO: '%d'\n", nc->DIO_counter);
+    } else if (nc->DIS_counter > MAX_DIS_THRESHOLD) {
+      alarm = true;
+      strcpy(da_sent.control,"alarm_DIS");
+      printf("ALARM DIS: '%d'\n", nc->DIS_counter);
+    } else if (nc->DAO_counter > MAX_DAO_THRESHOLD) {
+      alarm = true;
+      strcpy(da_sent.control,"alarm_DAO");
+      printf("ALARM DAO: '%d'\n", nc->DAO_counter);
+    } else if (nc->DIO_version_attack) {
+      /* Version number Attack */
+      alarm = true;
+      strcpy(da_sent.control,"alarm_VNU");
+      printf("ALARM Version number attack received from: ");
+      LOG_INFO_6ADDR(&nc->ipaddr);
+      LOG_INFO_("\n");
+    }
+    
+    if (alarm) {
+      uip_ipaddr_copy(&da_sent.node_ipaddr, &nc->ipaddr);
+      break;
+    }
+  }
+  printf("---------------------------------------------------------------\n");
+  if (alarm) {
+    uip_ipaddr_t from;
+    uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
+    uipbuf_clear();
+    rpl_icmp6_node_ids_output(&from, 1, &da_sent, sizeof(da_sent));
+    printf("Alarm sent\n");
+    initialize_control_messages_received();
+  }
+  uipbuf_clear();
+}
+
 static bool
 compare_ipv6_no_prefix(uip_ipaddr_t *addr1, uip_ipaddr_t *addr2)
 {
@@ -830,9 +895,11 @@ rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t
 
   switch (code) {
     case 0:
+      /* Discovery process */
       memcpy(buffer, data, 10);
       break;
     case 1:
+      /* IDS Sensor info */
       da_sent = (data_sent *) data;
       /* Copy to buffer 10 characters */
       memcpy(buffer, &da_sent->control, 10);
@@ -851,6 +918,12 @@ rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t
 }
 
 void
+rpl_icmp6_ids_info_output(uip_ipaddr_t *to)
+{
+  uip_icmp6_send(to, ICMP6_RPL, RPL_CODE_IDS_INFO, 0);
+}
+
+void
 initialize_control_messages_received()
 {
   struct node_counter *nc;
@@ -865,6 +938,7 @@ init_IDS_server()
 {
   IDS_SERVER = true;
   memb_init(&ids_sensor_list_memb);
+  list_init(ids_sensors_list);
 }
 
 void

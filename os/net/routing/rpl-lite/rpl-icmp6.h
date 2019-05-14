@@ -46,6 +46,13 @@
 #include "uip-ds6.h"
 #include "uip-ds6-nbr.h"
 
+/* DEFINE IDS CODE */
+#define MAX_NODE_STORAGE 10 
+#define MAX_NODE_STATS 10
+#define MAX_DIO_THRESHOLD 50
+#define MAX_DIS_THRESHOLD 20
+#define MAX_DAO_THRESHOLD 10
+
 /********** Data structures **********/
 
 /* Logical representation of a DAG Information Object (DIO.) */
@@ -112,8 +119,11 @@ bool DISCOVERY_ACK;
 struct node_counter nc_messages;
 
 list_t node_stats_list;
+list_t ids_sensors_list;
 
 void rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t datalen);
+
+void rpl_icmp6_ids_info_output(uip_ipaddr_t *to);
 
 void init_IDS_server();
 
