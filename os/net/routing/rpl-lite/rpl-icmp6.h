@@ -104,6 +104,7 @@ typedef struct node_counter {
   uint8_t DIO_counter;
   uint8_t DIS_counter;
   uint8_t DAO_counter;
+  uint8_t infi_rank_counter;
   bool DIO_version_attack;
 } node_counter;
 
@@ -132,6 +133,8 @@ void init_IDS_node_sensor();
 bool discovery_ack_received();
 
 void initialize_control_messages_received();
+
+void perform_local_repair_attack();
 
 /*------------------------------------------------------*/
 

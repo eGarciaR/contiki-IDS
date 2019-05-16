@@ -249,7 +249,8 @@ dio_input(void)
   /*Code for IDS*/
   /* ----------------------------------------------------------- */
   if (IDS_NODE_SENSOR) {
-    control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO", &dio.version);
+    //control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO", &dio.version);
+    control_messages_update(&UIP_IP_BUF->srcipaddr, "DIO", &dio);
   }
   /* ----------------------------------------------------------- */
 
@@ -399,6 +400,9 @@ rpl_icmp6_dio_output(uip_ipaddr_t *uc_addr)
   } else {
     set16(buffer, pos, curr_instance.dag.rank);
   }
+
+  /* Code for local repair attack */
+  //set16(buffer, pos, RPL_INFINITE_RANK);
   pos += 2;
 
   buffer[pos] = 0;
@@ -751,7 +755,10 @@ handle_IDS_alarms(char desc[10], uip_ipaddr_t *malicious_ip, uip_ipaddr_t *ids_n
     printf("Received DAO alarm from: %s\n", buf);
   } else if (!strcmp(desc,"alarm_VNU")) { 
     uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
-    printf("Received Version number attack from: %s\n", buf);
+    printf("Received Version Number Attack from: %s\n", buf);
+  } else if (!strcmp(desc,"alarm_LRA")) {
+    uiplib_ipaddr_snprint(buf, sizeof(buf), malicious_ip);
+    printf("Received Local Repair Attack from: %s\n", buf);
   } else {
     uiplib_ipaddr_snprint(buf, sizeof(buf), ids_node_ip);
     printf("Unable to understand message from: %s\n", buf);
@@ -833,7 +840,7 @@ ids_retrieve_info_input(void)
   for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
     char buf[40];
     uiplib_ipaddr_snprint(buf, sizeof(buf), &nc->ipaddr);
-    printf("IP: %s, DIO: %d, DIS: %d, DIO version attack?: %s\n",buf, nc->DIO_counter, nc->DIS_counter, nc->DIO_version_attack ? "true" : "false");
+    printf("IP: %s, DIO: %d, DIS: %d, IR: %d, DIO version attack?: %s\n",buf, nc->DIO_counter, nc->DIS_counter, nc->infi_rank_counter, nc->DIO_version_attack ? "true" : "false");
     /* HELLO FLOOD Attack */
     if (nc->DIO_counter > MAX_DIO_THRESHOLD) {
       alarm = true;
@@ -848,12 +855,16 @@ ids_retrieve_info_input(void)
       strcpy(da_sent.control,"alarm_DAO");
       printf("ALARM DAO: '%d'\n", nc->DAO_counter);
     } else if (nc->DIO_version_attack) {
-      /* Version number Attack */
+      /* Version Number Attack */
       alarm = true;
       strcpy(da_sent.control,"alarm_VNU");
-      printf("ALARM Version number attack received from: ");
-      LOG_INFO_6ADDR(&nc->ipaddr);
-      LOG_INFO_("\n");
+      printf("ALARM Version Number Attack received from: ");
+      printf("%s\n", buf);
+    } else if (nc->infi_rank_counter > 0 && (nc->infi_rank_counter >= (nc->DIO_counter/3)) && nc->DIO_counter > 6) {
+      /* Local Repair Attack */
+      alarm = true;
+      strcpy(da_sent.control,"alarm_LRA");
+      printf("ALARM Local Repair Attack received from: %s\n", buf);
     }
     
     if (alarm) {
@@ -928,7 +939,7 @@ initialize_control_messages_received()
 {
   struct node_counter *nc;
   for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = 0;
+    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = nc->infi_rank_counter = 0;
     nc->DIO_version_attack = false;
   }
 }
@@ -973,7 +984,11 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
     if (!strcmp((char *) msg_type,"DIO")) {
       /* If the message is a DIO, both increment DIO counter and check for DIO version */
       nc->DIO_counter = 1;
-      if (rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
+      if ((((rpl_dio_t *) aux)->rank) == RPL_INFINITE_RANK) {
+        nc->infi_rank_counter = 1;
+      }
+      //if (rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
+      if (rpl_lollipop_greater_than(((rpl_dio_t *) aux)->version, curr_instance.dag.version)) {
 	      /* DIO has a newer version. Check if it was root: */
 	      uip_ipaddr_t ip_root_cpy;
 	      if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
@@ -992,12 +1007,13 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
     /* If the message is a DIO, both increment DIO counter and check for DIO version */
     if (!strcmp((char *) msg_type,"DIO")) {
       if (nc->DIO_counter < 254) {++nc->DIO_counter;}
+      if ((((rpl_dio_t *) aux)->rank) == RPL_INFINITE_RANK) {++nc->infi_rank_counter;}
       /* If the DIO sender is on an older version of the DAG, do not process it
       * further. The sender will eventually hear the global repair and catch up. */
-      if(rpl_lollipop_greater_than(curr_instance.dag.version, *(int *)aux)) {
+      if(rpl_lollipop_greater_than(curr_instance.dag.version, ((rpl_dio_t *) aux)->version)) {
         return;
       }
-      if (rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
+      if (rpl_lollipop_greater_than(((rpl_dio_t *) aux)->version, curr_instance.dag.version)) {
         /* DIO has a newer version. Check if it was root: */
 	      uip_ipaddr_t ip_root_cpy;
         if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
@@ -1012,4 +1028,11 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
       ++nc->DAO_counter;
     }
   }
+}
+
+void
+perform_local_repair_attack()
+{
+  rpl_local_repair("Attack");
+  printf("Local repair sent\n");
 }
