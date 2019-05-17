@@ -66,9 +66,6 @@
 #define RPL_DIO_MOP_MASK                 0x38
 #define RPL_DIO_PREFERENCE_MASK          0x07
 /*---------------------------------------------------------------------------*/
-/* Allocate memory for nodes list (IDS CODE)*/
-MEMB(nodes_list_memb, struct node_counter, 16);
-MEMB(ids_sensor_list_memb, struct ids_sensor_list, 16);
 
 /* Create input functions to handle IDS messages */
 static void node_ids_input(void);
@@ -77,6 +74,7 @@ static void ids_retrieve_info_input(void);
 
 /* Create function to control received messages */
 static void control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux);
+static void ids_server_control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux);
 
 /* Initialize IDS node messages handler */
 UIP_ICMP6_HANDLER(node_ids_handler, ICMP6_RPL, RPL_CODE_NODE_IDS, node_ids_input);
@@ -155,6 +153,10 @@ dis_input(void)
   /*Code for IDS*/
   if (IDS_NODE_SENSOR) {
     control_messages_update(&UIP_IP_BUF->srcipaddr, "DIS", NULL);
+  } 
+
+  if (IDS_SERVER) {
+    ids_server_control_messages_update(&UIP_IP_BUF->srcipaddr, "DIS", NULL);
   }
   /* -------------------------------------------------------------*/
   if(!curr_instance.used) {
@@ -498,11 +500,16 @@ rpl_icmp6_dio_output(uip_ipaddr_t *uc_addr)
 static void
 dao_input(void)
 {
+  char buf[40];
+  uiplib_ipaddr_snprint(buf, sizeof(buf), &UIP_IP_BUF->srcipaddr);
+
   /*Code for IDS*/
-  if (IDS_NODE_SENSOR) {
-    control_messages_update(&UIP_IP_BUF->srcipaddr, "DAO", NULL);
+  /* ----------------------------------------------------------- */
+  if (IDS_SERVER) {
+    //control_messages_update(&UIP_IP_BUF->srcipaddr, "DAO", NULL);
   }
-  /*-------------------------------------------------------------*/
+  /* ----------------------------------------------------------- */
+
   struct rpl_dao dao;
   uint8_t subopt_type;
   unsigned char *buffer;
@@ -789,17 +796,19 @@ node_ids_input(void)
     printf("Discovery received\n");
     uipbuf_clear();
     uip_icmp6_send(&from, ICMP6_RPL, RPL_CODE_IDS_ACK, 0);
-    struct ids_sensor_list *isl;
     /* Check if we already know this sensor */
-    for(isl = list_head(ids_sensors_list); isl != NULL; isl = list_item_next(isl)) {
-      if (uip_ipaddr_cmp(&from,&isl->ipaddr)) {
+    int j;
+    for(j=0; j < 10 && ids_sensors_list[j].used; ++j) {
+      if (uip_ipaddr_cmp(&from,&ids_sensors_list[j].ipaddr)) {
         return;
       }
     }
-    
-    isl = memb_alloc(&ids_sensor_list_memb);
-    uip_ipaddr_copy(&isl->ipaddr, &from);
-    list_add(ids_sensors_list, isl);
+    if (j < 10) {
+      uip_ipaddr_copy(&ids_sensors_list[j].ipaddr, &from);
+      ids_sensors_list[j].used = true;
+    } else {
+      printf("ERROR. Not enough storage\n");
+    }
     return;
   }
 
@@ -825,6 +834,76 @@ ids_ack_input(void)
   uipbuf_clear();
 }
 
+static bool
+attack_detected_from_sensor(struct data_sent *da_sent)
+{
+  uint8_t i;
+  for(i=0; i<16 && node_stats_list[i].used; ++i) {
+    char buf[40];
+    uiplib_ipaddr_snprint(buf, sizeof(buf), &node_stats_list[i].ipaddr);
+    printf("IP: %s, DIO: %d, DIS: %d, DIO version attack?: %s\n",buf, node_stats_list[i].DIO_counter, node_stats_list[i].DIS_counter, node_stats_list[i].DIO_version_attack ? "true" : "false");
+    /* HELLO FLOOD Attack */
+    if (node_stats_list[i].DIO_counter > MAX_DIO_THRESHOLD) {
+      strcpy(da_sent->control,"alarm_DIO");
+      printf("ALARM DIO: '%d'\n", node_stats_list[i].DIO_counter);
+      break;
+    } else if (node_stats_list[i].DIS_counter > MAX_DIS_THRESHOLD) {
+      strcpy(da_sent->control,"alarm_DIS");
+      printf("ALARM DIS: '%d'\n", node_stats_list[i].DIS_counter);
+      break;
+    } else if (node_stats_list[i].DIO_version_attack) {
+      /* Version Number Attack */
+      strcpy(da_sent->control,"alarm_VNU");
+      printf("ALARM Version Number Attack received from: ");
+      printf("%s\n", buf);
+      break;
+    }
+  }
+
+  if (!node_stats_list[i].used) {return false;}
+  else {uip_ipaddr_copy(&da_sent->node_ipaddr, &node_stats_list[i].ipaddr);}
+
+  return true;
+}
+
+static bool
+attack_detected_from_ids_server(struct data_sent *da_sent)
+{
+
+  uint8_t i;
+  for(i=0;i<16 && ids_node_stats_list[i].used; ++i) {
+    char buf[40];
+    uiplib_ipaddr_snprint(buf, sizeof(buf), &ids_node_stats_list[i].ipaddr);
+    printf("IP: %s, DIO: %d, DIS: %d, DAO: %d, DIO version attack?: %s\n",buf, ids_node_stats_list[i].DIO_counter, ids_node_stats_list[i].DIS_counter, ids_node_stats_list[i].DAO_counter, ids_node_stats_list[i].DIO_version_attack ? "true" : "false");
+    /* HELLO FLOOD Attack */
+    if (ids_node_stats_list[i].DIO_counter > MAX_DIO_THRESHOLD) {
+      strcpy(da_sent->control,"alarm_DIO");
+      printf("ALARM DIO: '%d'\n", ids_node_stats_list[i].DIO_counter);
+      break;
+    } else if (ids_node_stats_list[i].DIS_counter > MAX_DIS_THRESHOLD) {
+      strcpy(da_sent->control,"alarm_DIS");
+      printf("ALARM DIS: '%d'\n", ids_node_stats_list[i].DIS_counter);
+      break;
+    } else if (ids_node_stats_list[i].DIO_version_attack) {
+      /* Version Number Attack */
+      strcpy(da_sent->control,"alarm_VNU");
+      printf("ALARM Version Number Attack received from: ");
+      printf("%s\n", buf);
+      break;
+    } else if (ids_node_stats_list[i].DAO_counter > MAX_DAO_THRESHOLD) {
+      /* DAO Insider Attack */
+      strcpy(da_sent->control,"alarm_DAO");
+      printf("ALARM DAO Insider Attack received from: %s\n", buf);
+      break;
+    }
+  }
+
+  if (!ids_node_stats_list[i].used) {return false;}
+  else {uip_ipaddr_copy(&da_sent->node_ipaddr, &ids_node_stats_list[i].ipaddr);}
+
+  return true;
+}
+
 static void 
 ids_retrieve_info_input(void)
 {
@@ -834,45 +913,9 @@ ids_retrieve_info_input(void)
   }
 
   bool alarm = false;
-  struct node_counter *nc;
   static struct data_sent da_sent;
+  alarm = attack_detected_from_sensor(&da_sent);
 
-  for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-    char buf[40];
-    uiplib_ipaddr_snprint(buf, sizeof(buf), &nc->ipaddr);
-    printf("IP: %s, DIO: %d, DIS: %d, IR: %d, DIO version attack?: %s\n",buf, nc->DIO_counter, nc->DIS_counter, nc->infi_rank_counter, nc->DIO_version_attack ? "true" : "false");
-    /* HELLO FLOOD Attack */
-    if (nc->DIO_counter > MAX_DIO_THRESHOLD) {
-      alarm = true;
-      strcpy(da_sent.control,"alarm_DIO");
-      printf("ALARM DIO: '%d'\n", nc->DIO_counter);
-    } else if (nc->DIS_counter > MAX_DIS_THRESHOLD) {
-      alarm = true;
-      strcpy(da_sent.control,"alarm_DIS");
-      printf("ALARM DIS: '%d'\n", nc->DIS_counter);
-    } else if (nc->DAO_counter > MAX_DAO_THRESHOLD) {
-      alarm = true;
-      strcpy(da_sent.control,"alarm_DAO");
-      printf("ALARM DAO: '%d'\n", nc->DAO_counter);
-    } else if (nc->DIO_version_attack) {
-      /* Version Number Attack */
-      alarm = true;
-      strcpy(da_sent.control,"alarm_VNU");
-      printf("ALARM Version Number Attack received from: ");
-      printf("%s\n", buf);
-    } else if (nc->infi_rank_counter > 0 && (nc->infi_rank_counter >= (nc->DIO_counter/3)) && nc->DIO_counter > 6) {
-      /* Local Repair Attack */
-      alarm = true;
-      strcpy(da_sent.control,"alarm_LRA");
-      printf("ALARM Local Repair Attack received from: %s\n", buf);
-    }
-    
-    if (alarm) {
-      uip_ipaddr_copy(&da_sent.node_ipaddr, &nc->ipaddr);
-      break;
-    }
-  }
-  printf("---------------------------------------------------------------\n");
   if (alarm) {
     uip_ipaddr_t from;
     uip_ipaddr_copy(&from, &UIP_IP_BUF->srcipaddr);
@@ -937,10 +980,10 @@ rpl_icmp6_ids_info_output(uip_ipaddr_t *to)
 void
 initialize_control_messages_received()
 {
-  struct node_counter *nc;
-  for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-    nc->DIO_counter = nc->DIS_counter = nc->DAO_counter = nc->infi_rank_counter = 0;
-    nc->DIO_version_attack = false;
+  uint8_t i;
+  for(i=0;i<16 && node_stats_list[i].used; ++i) {
+    node_stats_list[i].DIO_counter = node_stats_list[i].DIS_counter = 0;
+    node_stats_list[i].DIO_version_attack = false;
   }
 }
 
@@ -948,16 +991,13 @@ void
 init_IDS_server()
 {
   IDS_SERVER = true;
-  memb_init(&ids_sensor_list_memb);
-  list_init(ids_sensors_list);
+
 }
 
 void
 init_IDS_node_sensor()
 {
   IDS_NODE_SENSOR = true;
-  memb_init(&nodes_list_memb);
-  list_init(node_stats_list);
 }
 
 bool
@@ -969,45 +1009,37 @@ discovery_ack_received()
 static void
 control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
 {
-  struct node_counter *nc;
   /* Check if we already know this node */
-  for(nc = list_head(node_stats_list); nc != NULL; nc = list_item_next(nc)) {
-    if (uip_ipaddr_cmp(srcaddr,&nc->ipaddr)) {
+  uint8_t i;
+  for(i=0;i<16 && node_stats_list[i].used; ++i) {
+    if (uip_ipaddr_cmp(srcaddr,&node_stats_list[i].ipaddr)) {
       break;
     }
   }
   
   /* If nc is NULL, the node is not in the list */
-  if (nc == NULL) {
-    nc = memb_alloc(&nodes_list_memb);
-    uip_ipaddr_copy(&nc->ipaddr, srcaddr);
+  if (i<16 && !node_stats_list[i].used) {
+    uip_ipaddr_copy(&node_stats_list[i].ipaddr, srcaddr);
     if (!strcmp((char *) msg_type,"DIO")) {
       /* If the message is a DIO, both increment DIO counter and check for DIO version */
-      nc->DIO_counter = 1;
-      if ((((rpl_dio_t *) aux)->rank) == RPL_INFINITE_RANK) {
-        nc->infi_rank_counter = 1;
-      }
-      //if (rpl_lollipop_greater_than(*(int *)aux, curr_instance.dag.version)) {
+      node_stats_list[i].DIO_counter = 1;
       if (rpl_lollipop_greater_than(((rpl_dio_t *) aux)->version, curr_instance.dag.version)) {
 	      /* DIO has a newer version. Check if it was root: */
 	      uip_ipaddr_t ip_root_cpy;
 	      if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
-	        if (!uip_ipaddr_cmp(&ip_root_cpy,&nc->ipaddr)) {nc->DIO_version_attack = true;}
+	        if (!uip_ipaddr_cmp(&ip_root_cpy,&node_stats_list[i].ipaddr)) {node_stats_list[i].DIO_version_attack = true;}
 	      } else {
 	        printf("ERROR: Instance has no root\n");
 	      }
       }
     } else if (!strcmp((char *) msg_type,"DIS")) {
-      nc->DIS_counter = 1;
-    } else if (!strcmp((char *) msg_type,"DAO")) {
-      nc->DAO_counter= 1;
+      node_stats_list[i].DIS_counter = 1;
     }
-    list_add(node_stats_list, nc);
-  } else {
+    node_stats_list[i].used = true;
+  } else if(i<16 && node_stats_list[i].used) {
     /* If the message is a DIO, both increment DIO counter and check for DIO version */
     if (!strcmp((char *) msg_type,"DIO")) {
-      if (nc->DIO_counter < 254) {++nc->DIO_counter;}
-      if ((((rpl_dio_t *) aux)->rank) == RPL_INFINITE_RANK) {++nc->infi_rank_counter;}
+      if (node_stats_list[i].DIO_counter < 254) {++node_stats_list[i].DIO_counter;}
       /* If the DIO sender is on an older version of the DAG, do not process it
       * further. The sender will eventually hear the global repair and catch up. */
       if(rpl_lollipop_greater_than(curr_instance.dag.version, ((rpl_dio_t *) aux)->version)) {
@@ -1017,22 +1049,82 @@ control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
         /* DIO has a newer version. Check if it was root: */
 	      uip_ipaddr_t ip_root_cpy;
         if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
-	        if (!compare_ipv6_no_prefix(&ip_root_cpy,&nc->ipaddr)) {nc->DIO_version_attack = true;}
+	        if (!compare_ipv6_no_prefix(&ip_root_cpy,&node_stats_list[i].ipaddr)) {node_stats_list[i].DIO_version_attack = true;}
         } else {
           printf("ERROR: Instance has no root\n");
         }
       }
-    } else if (!strcmp((char *) msg_type,"DIS") && (nc->DIS_counter < 254)) {
-      ++nc->DIS_counter;
-    } else if (!strcmp((char *) msg_type,"DAO") && (nc->DAO_counter < 254)) {
-      ++nc->DAO_counter;
+    } else if (!strcmp((char *) msg_type,"DIS") && (node_stats_list[i].DIS_counter < 254)) {
+      ++node_stats_list[i].DIS_counter;
+    }
+  }
+}
+
+static void
+ids_server_control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void *aux)
+{
+  /* Check if we already know this node */
+  uint8_t i;
+  for(i=0;i<16 && ids_node_stats_list[i].used; ++i) {
+    if (uip_ipaddr_cmp(srcaddr,&ids_node_stats_list[i].ipaddr)) {
+      break;
+    }
+  }
+  
+  /* If nc is NULL, the node is not in the list */
+  if (i<16 && !ids_node_stats_list[i].used) {
+    uip_ipaddr_copy(&ids_node_stats_list[i].ipaddr, srcaddr);
+    if (!strcmp((char *) msg_type,"DIO")) {
+      /* If the message is a DIO, both increment DIO counter and check for DIO version */
+      ids_node_stats_list[i].DIO_counter = 1;
+      if (rpl_lollipop_greater_than(((rpl_dio_t *) aux)->version, curr_instance.dag.version)) {
+        /* DIO has a newer version. Check if it was root: */
+        uip_ipaddr_t ip_root_cpy;
+        if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
+          if (!uip_ipaddr_cmp(&ip_root_cpy,&ids_node_stats_list[i].ipaddr)) {ids_node_stats_list[i].DIO_version_attack = true;}
+        } else {
+          printf("ERROR: Instance has no root\n");
+        }
+      }
+    } else if (!strcmp((char *) msg_type,"DIS")) {
+      ids_node_stats_list[i].DIS_counter = 1;
+    } else if (!strcmp((char *) msg_type,"DAO")) {
+      ids_node_stats_list[i].DAO_counter = 1;
+    }
+    ids_node_stats_list[i].used = true;
+  } else if (i<16 && ids_node_stats_list[i].used) {
+    /* If the message is a DIO, both increment DIO counter and check for DIO version */
+    if (!strcmp((char *) msg_type,"DIO")) {
+      if (ids_node_stats_list[i].DIO_counter < 254) {++ids_node_stats_list[i].DIO_counter;}
+      /* If the DIO sender is on an older version of the DAG, do not process it
+      * further. The sender will eventually hear the global repair and catch up. */
+      if(rpl_lollipop_greater_than(curr_instance.dag.version, ((rpl_dio_t *) aux)->version)) {
+        return;
+      }
+      if (rpl_lollipop_greater_than(((rpl_dio_t *) aux)->version, curr_instance.dag.version)) {
+        /* DIO has a newer version. Check if it was root: */
+        uip_ipaddr_t ip_root_cpy;
+        if (rpl_dag_get_root_ipaddr(&ip_root_cpy)) {
+          if (!compare_ipv6_no_prefix(&ip_root_cpy,&ids_node_stats_list[i].ipaddr)) {ids_node_stats_list[i].DIO_version_attack = true;}
+        } else {
+          printf("ERROR: Instance has no root\n");
+        }
+      }
+    } else if (!strcmp((char *) msg_type,"DIS") && (ids_node_stats_list[i].DIS_counter < 254)) {
+      ++ids_node_stats_list[i].DIS_counter;
+    } else if (!strcmp((char *) msg_type,"DAO")) {
+      ++ids_node_stats_list[i].DAO_counter;
     }
   }
 }
 
 void
-perform_local_repair_attack()
+check_stats()
 {
-  rpl_local_repair("Attack");
-  printf("Local repair sent\n");
+  bool alarm = false;
+  static struct data_sent da_sent;
+  alarm = attack_detected_from_ids_server(&da_sent);
+  if (alarm) {
+    printf("Alarm detected from IDS Server\n");
+  }
 }

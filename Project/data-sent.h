@@ -10,7 +10,6 @@
 #define MAX_NODE_STATS 10
 #define MAX_DIO_THRESHOLD 50
 #define MAX_DIS_THRESHOLD 20
-#define MAX_DAO_THRESHOLD 10
 
 /*Struct to send control data to IDS*/
 /*typedef struct data_sent{

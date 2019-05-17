@@ -51,7 +51,7 @@
 #define MAX_NODE_STATS 10
 #define MAX_DIO_THRESHOLD 50
 #define MAX_DIS_THRESHOLD 20
-#define MAX_DAO_THRESHOLD 10
+#define MAX_DAO_THRESHOLD 50
 
 /********** Data structures **********/
 
@@ -103,24 +103,36 @@ typedef struct node_counter {
   uip_ipaddr_t ipaddr;
   uint8_t DIO_counter;
   uint8_t DIS_counter;
-  uint8_t DAO_counter;
-  uint8_t infi_rank_counter;
   bool DIO_version_attack;
+  bool used;
 } node_counter;
 
-typedef struct ids_sensor_list {
-  struct ids_sensor_list *next;
+typedef struct ids_node_stats_counter {
+  struct ids_node_stats_counter *next;
   uip_ipaddr_t ipaddr;
-} ids_sensor_list;
+  uint8_t DIO_counter;
+  uint8_t DIS_counter;
+  uint16_t DAO_counter;
+  bool DIO_version_attack;
+  bool used;
+} ids_node_stats_counter;
+
+typedef struct ids_sensor {
+  struct ids_sensor *next;
+  uip_ipaddr_t ipaddr;
+  bool used;
+} ids_sensor; 
 
 bool IDS_SERVER;
 bool IDS_NODE_SENSOR;
 bool DISCOVERY_ACK;
 
-struct node_counter nc_messages;
-
-list_t node_stats_list;
-list_t ids_sensors_list;
+//list_t node_stats_list;
+//list_t ids_node_stats_list;
+//list_t ids_sensors_list;
+struct node_counter node_stats_list[16];
+struct ids_node_stats_counter ids_node_stats_list[16];
+struct ids_sensor ids_sensors_list[10];
 
 void rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t datalen);
 
@@ -134,7 +146,7 @@ bool discovery_ack_received();
 
 void initialize_control_messages_received();
 
-void perform_local_repair_attack();
+void check_stats();
 
 /*------------------------------------------------------*/
 

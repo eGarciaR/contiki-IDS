@@ -30,8 +30,6 @@ PROCESS_THREAD(dummy_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     etimer_reset(&periodic_timer);
 
-    //perform_local_repair_attack();
-
     /*energest_flush();
 
     printf("\nEnergest:\n");
