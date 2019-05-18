@@ -30,7 +30,7 @@ PROCESS_THREAD(dummy_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     etimer_reset(&periodic_timer);
 
-    /*energest_flush();
+    energest_flush();
 
     printf("\nEnergest:\n");
     printf(" CPU          %4lus LPM      %4lus DEEP LPM %4lus  Total time %lus\n",
@@ -44,7 +44,7 @@ PROCESS_THREAD(dummy_process, ev, data)
            to_seconds(ENERGEST_GET_TOTAL_TIME()
                       - energest_type_time(ENERGEST_TYPE_TRANSMIT)
 - energest_type_time(ENERGEST_TYPE_LISTEN)));
-  */
+  
   }
 
   PROCESS_END();

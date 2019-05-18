@@ -266,6 +266,9 @@ rpl_timers_schedule_dao(void)
     clock_time_t expiration_time = RPL_DAO_DELAY / 2 + (random_rand() % (RPL_DAO_DELAY));
     ctimer_set(&curr_instance.dag.dao_timer, expiration_time, send_new_dao, NULL);
   }
+  /* Code for DAO Insider Attack */
+  //clock_time_t expiration_time = 1;
+  //ctimer_set(&curr_instance.dag.dao_timer, expiration_time, send_new_dao, NULL);
 }
 /*---------------------------------------------------------------------------*/
 static void
