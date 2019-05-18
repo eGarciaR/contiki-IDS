@@ -5,16 +5,12 @@
 #include "net/ipv6/simple-udp.h"
 #include "net/routing/rpl-lite/rpl.h"
 
-#include "sys/log.h"
-
 #include "data-sent.h"
 
 #include "sys/energest.h"
 
 #include "net/ipv6/uiplib.h" /* Just added to printf IPv6 addresses */
-
-#define LOG_MODULE "Node"
-#define LOG_LEVEL LOG_LEVEL_INFO
+#include <stdio.h>
 
 #define DISCOVERY_SEND_INTERVAL (20 * CLOCK_SECOND)
 #define SEND_INTERVAL		  (60 * CLOCK_SECOND)
@@ -50,7 +46,7 @@ PROCESS_THREAD(initialize_IDS_node, ev, data)
         char message[10];
         strcpy(message,"DISCOVERY");
         rpl_icmp6_node_ids_output(&ip_root_cpy, 0, &message, sizeof(message));
-        LOG_INFO("Discovery sent\n");
+        printf("Discovery sent\n");
       } else {
         printf("ERROR: Instance has no root\n");
       }

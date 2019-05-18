@@ -47,6 +47,8 @@
 #include "net/nbr-table.h"
 #include "net/link-stats.h"
 
+#include "net/ipv6/uiplib.h" /* Just added to printf IPv6 addresses */
+
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "RPL"
@@ -397,7 +399,7 @@ process_dio_from_current_dag(uip_ipaddr_t *from, rpl_dio_t *dio)
 {
   rpl_nbr_t *nbr;
   uint8_t last_dtsn;
-
+  
   /* Does the rank make sense at all? */
   if(dio->rank < ROOT_RANK) {
     return;

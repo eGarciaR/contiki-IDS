@@ -47,11 +47,12 @@
 #include "uip-ds6-nbr.h"
 
 /* DEFINE IDS CODE */
-#define MAX_NODE_STORAGE 10 
-#define MAX_NODE_STATS 10
 #define MAX_DIO_THRESHOLD 50
 #define MAX_DIS_THRESHOLD 20
-#define MAX_DAO_THRESHOLD 50
+#define MAX_DAO_THRESHOLD 40
+
+#define MAX_NODE_NEIGHBOR 16
+#define MAX_SENSORS       10
 
 /********** Data structures **********/
 
@@ -127,12 +128,9 @@ bool IDS_SERVER;
 bool IDS_NODE_SENSOR;
 bool DISCOVERY_ACK;
 
-//list_t node_stats_list;
-//list_t ids_node_stats_list;
-//list_t ids_sensors_list;
-struct node_counter node_stats_list[16];
-struct ids_node_stats_counter ids_node_stats_list[16];
-struct ids_sensor ids_sensors_list[10];
+struct node_counter node_stats_list[MAX_NODE_NEIGHBOR];
+struct ids_node_stats_counter ids_node_stats_list[MAX_NODE_NEIGHBOR];
+struct ids_sensor ids_sensors_list[MAX_SENSORS];
 
 void rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t datalen);
 

@@ -6,11 +6,7 @@
 #include "net/routing/rpl-lite/rpl.h"
 
 #include "net/ipv6/uiplib.h" /* Just added to printf IPv6 addresses */
-
-#include "sys/log.h"
-
-#define LOG_MODULE "App"
-#define LOG_LEVEL LOG_LEVEL_INFO
+#include <stdio.h>
 
 PROCESS(initialize_IDS, "Initialize IDS");
 PROCESS(ids_server_process, "IDS server");
