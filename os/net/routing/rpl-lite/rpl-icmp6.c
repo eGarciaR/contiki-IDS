@@ -919,8 +919,8 @@ ids_retrieve_info_input(void)
     uipbuf_clear();
     rpl_icmp6_node_ids_output(&from, 1, &da_sent, sizeof(da_sent));
     printf("Alarm sent\n");
-    initialize_control_messages_received();
   }
+  initialize_control_messages_received();
   uipbuf_clear();
 }
 

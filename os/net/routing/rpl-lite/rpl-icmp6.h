@@ -104,8 +104,11 @@ typedef struct node_counter {
   uip_ipaddr_t ipaddr;
   uint8_t DIO_counter;
   uint8_t DIS_counter;
+  uint8_t heartbeat_failures;
   bool DIO_version_attack;
   bool used;
+  bool ping_response_received;
+  bool ping_message_sent;
 } node_counter;
 
 typedef struct ids_node_stats_counter {
