@@ -104,6 +104,7 @@ typedef struct node_counter {
   uip_ipaddr_t ipaddr;
   uint8_t DIO_counter;
   uint8_t DIS_counter;
+  uint16_t DAO_counter;
   uint8_t heartbeat_failures;
   bool DIO_version_attack;
   bool used;
@@ -132,7 +133,7 @@ bool IDS_NODE_SENSOR;
 bool DISCOVERY_ACK;
 
 struct node_counter node_stats_list[MAX_NODE_NEIGHBOR];
-struct ids_node_stats_counter ids_node_stats_list[MAX_NODE_NEIGHBOR];
+struct node_counter ids_node_stats_list[MAX_NODE_NEIGHBOR];
 struct ids_sensor ids_sensors_list[MAX_SENSORS];
 
 void rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t datalen);
@@ -148,6 +149,8 @@ bool discovery_ack_received();
 void initialize_control_messages_received();
 
 void check_stats();
+
+/*void set_blackhole();*/
 
 /*------------------------------------------------------*/
 

@@ -163,6 +163,11 @@ check_for_tcp_syn(void)
 static void
 packet_input(void)
 {
+  /*if (BLACKHOLE) {
+    printf("Dropped packet\n");
+    return;
+  }*/
+
   if(uip_len > 0) {
     LOG_INFO("input: received %u bytes\n", uip_len);
 
@@ -538,6 +543,7 @@ get_nexthop(uip_ipaddr_t *addr)
     /* If the nexthop is dead, for example because the neighbor
        never responded to link-layer acks, we drop its route. */
     if(nexthop == NULL) {
+      printf("SENT14\n");
       LOG_ERR("output: found dead route\n");
       /* Notifiy the routing protocol that we are about to remove the route */
       NETSTACK_ROUTING.drop_route(route);
@@ -545,6 +551,7 @@ get_nexthop(uip_ipaddr_t *addr)
       uip_ds6_route_rm(route);
       /* We don't have a nexthop to send the packet to, so we drop it. */
     } else {
+      printf("SENT15\n");
       LOG_INFO("output: found next hop from routing table: ");
       LOG_INFO_6ADDR(nexthop);
       LOG_INFO_("\n");

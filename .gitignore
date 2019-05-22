@@ -38,7 +38,6 @@ COOJA.testlog
 *.firmware
 *.cc26x0-cc13x0
 *.zoul
-*.z1
 
 # do not ignore platform makefiles
 !Makefile.cc2538dk

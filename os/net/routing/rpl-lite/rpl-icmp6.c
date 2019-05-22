@@ -50,6 +50,7 @@
 #include "lib/random.h"
 
 #include "net/ipv6/uiplib.h" /* Just added to printf IPv6 addresses */
+#include "net/routing/routing.h" /* Just added for blackhole */
 
 #include <limits.h>
 
@@ -1131,3 +1132,9 @@ check_stats()
   }
   ids_initialize_control_messages_received();
 }
+
+/*void
+set_blackhole()
+{
+  BLACKHOLE = true;
+}*/
