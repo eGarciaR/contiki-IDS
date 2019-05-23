@@ -51,6 +51,8 @@
 #define MAX_DIS_THRESHOLD 20
 #define MAX_DAO_THRESHOLD 40
 
+#define MAX_HEARTBEAT_FAILURES 5
+
 #define MAX_NODE_NEIGHBOR 16
 #define MAX_SENSORS       10
 
@@ -104,22 +106,22 @@ typedef struct node_counter {
   uip_ipaddr_t ipaddr;
   uint8_t DIO_counter;
   uint8_t DIS_counter;
-  uint16_t DAO_counter;
-  uint8_t heartbeat_failures;
   bool DIO_version_attack;
   bool used;
-  bool ping_response_received;
-  bool ping_message_sent;
 } node_counter;
 
 typedef struct ids_node_stats_counter {
   struct ids_node_stats_counter *next;
   uip_ipaddr_t ipaddr;
+  uip_ipaddr_t parent;
   uint8_t DIO_counter;
   uint8_t DIS_counter;
-  uint16_t DAO_counter;
+  uint8_t DAO_counter;
+  uint8_t heartbeat_failures;
   bool DIO_version_attack;
   bool used;
+  bool ping_response_received;
+  bool ping_message_sent;
 } ids_node_stats_counter;
 
 typedef struct ids_sensor {
@@ -133,7 +135,7 @@ bool IDS_NODE_SENSOR;
 bool DISCOVERY_ACK;
 
 struct node_counter node_stats_list[MAX_NODE_NEIGHBOR];
-struct node_counter ids_node_stats_list[MAX_NODE_NEIGHBOR];
+struct ids_node_stats_counter ids_node_stats_list[MAX_NODE_NEIGHBOR];
 struct ids_sensor ids_sensors_list[MAX_SENSORS];
 
 void rpl_icmp6_node_ids_output(uip_ipaddr_t *to, int code, const void *data, uint16_t datalen);
@@ -149,6 +151,8 @@ bool discovery_ack_received();
 void initialize_control_messages_received();
 
 void check_stats();
+
+void check_node_not_reachable();
 
 /*void set_blackhole();*/
 

@@ -34,6 +34,19 @@ icmp_reply_handler(uip_ipaddr_t *source, uint8_t ttl,
 }
 
 static void
+reset_heartbeat_status()
+{
+  heartbeat_alarm = false;
+  uint8_t i;
+  for(i=0; i < MAX_NODE_NEIGHBOR && ids_node_stats_list[i].used; ++i) {
+    ids_node_stats_list[i].ping_message_sent = false;
+    ids_node_stats_list[i].ping_response_received = false;
+    ids_node_stats_list[i].heartbeat_failures = 0;
+    no_reply = false;
+  }
+}
+
+static void
 IDS_sensor_hearbeat()
 {
   char buf[21];
@@ -61,23 +74,23 @@ IDS_sensor_hearbeat()
         uip_icmp6_send(&ids_node_stats_list[i].ipaddr, ICMP6_ECHO_REQUEST, 0, 20);
         no_reply = true;
         /* If failures > FAILURES_THRESHOLD, rise an alarm */
-        if (ids_node_stats_list[i].heartbeat_failures > 5) {
+        if (ids_node_stats_list[i].heartbeat_failures > MAX_HEARTBEAT_FAILURES) {
           uiplib_ipaddr_snprint(buf, sizeof(buf), &ids_node_stats_list[i].ipaddr);
           printf("ALARM: Node %s not reachable.\n", buf);
           heartbeat_alarm = true;
-          ids_node_stats_list[i].heartbeat_failures = 0;
         }
       }
     }
   }
-  /* Reset everything to start Heartbeat again, either if the alarm is raised or everything is successful */
-  if (heartbeat_alarm || (!no_reply && (i>=MAX_NODE_NEIGHBOR || !ids_node_stats_list[i].used))) {
-    for(i=0; i < MAX_NODE_NEIGHBOR && ids_node_stats_list[i].used; ++i) {
+  /* Reset everything to start Heartbeat again if everything is successful */
+  if ((!no_reply && (i>=MAX_NODE_NEIGHBOR || !ids_node_stats_list[i].used))) {
+    /*for(i=0; i < MAX_NODE_NEIGHBOR && ids_node_stats_list[i].used; ++i) {
       ids_node_stats_list[i].ping_message_sent = false;
       ids_node_stats_list[i].ping_response_received = false;
-      heartbeat_alarm = false;
+      ids_node_stats_list[i].heartbeat_failures = 0;
       no_reply = false;
-    }
+    }*/
+    reset_heartbeat_status();
   }
 }
 
@@ -132,8 +145,14 @@ PROCESS_THREAD(ids_sensor_heartbeat_check, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
 
     IDS_sensor_hearbeat();
-
-    etimer_reset(&periodic_timer);
+    if (heartbeat_alarm) {
+      etimer_stop(&periodic_timer);
+      check_node_not_reachable();
+      reset_heartbeat_status();
+      etimer_restart(&periodic_timer);
+    } else {
+      etimer_reset(&periodic_timer);
+    }
   }
 
   PROCESS_END();

@@ -501,13 +501,6 @@ dao_input(void)
   char buf[40];
   uiplib_ipaddr_snprint(buf, sizeof(buf), &UIP_IP_BUF->srcipaddr);
 
-  /*Code for IDS*/
-  /* ----------------------------------------------------------- */
-  if (IDS_SERVER) {
-    ids_server_control_messages_update(&UIP_IP_BUF->srcipaddr, "DAO", NULL);
-  }
-  /* ----------------------------------------------------------- */
-
   struct rpl_dao dao;
   uint8_t subopt_type;
   unsigned char *buffer;
@@ -577,6 +570,13 @@ dao_input(void)
         break;
     }
   }
+
+  /*Code for IDS*/
+  /* ----------------------------------------------------------- */
+  if (IDS_SERVER) {
+    ids_server_control_messages_update(&UIP_IP_BUF->srcipaddr, "DAO", &dao);
+  }
+  /* ----------------------------------------------------------- */
 
   /* Destination Advertisement Object */
   LOG_INFO("received a %sDAO from ", dao.lifetime == 0 ? "No-path " : "");
@@ -871,8 +871,10 @@ attack_detected_from_ids_server(struct data_sent *da_sent)
   uint8_t i;
   for(i=0;i<MAX_NODE_NEIGHBOR && ids_node_stats_list[i].used; ++i) {
     char buf[40];
+    char parent[21];
     uiplib_ipaddr_snprint(buf, sizeof(buf), &ids_node_stats_list[i].ipaddr);
-    printf("IP: %s, DIO: %d, DIS: %d, DAO: %d, DIO version attack?: %s\n",buf, ids_node_stats_list[i].DIO_counter, ids_node_stats_list[i].DIS_counter, ids_node_stats_list[i].DAO_counter, ids_node_stats_list[i].DIO_version_attack ? "true" : "false");
+    uiplib_ipaddr_snprint(parent, sizeof(parent), &ids_node_stats_list[i].parent);
+    printf("IP: %s, DIO: %d, DIS: %d, DAO: %d, Parent: %s, DIO version attack?: %s\n",buf, ids_node_stats_list[i].DIO_counter, ids_node_stats_list[i].DIS_counter, ids_node_stats_list[i].DAO_counter, parent, ids_node_stats_list[i].DIO_version_attack ? "true" : "false");
     /* HELLO FLOOD Attack */
     if (ids_node_stats_list[i].DIO_counter > MAX_DIO_THRESHOLD) {
       strcpy(da_sent->control,"alarm_DIO");
@@ -1097,6 +1099,7 @@ ids_server_control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void
     } else if (!strcmp((char *) msg_type,"DIS")) {
       ids_node_stats_list[i].DIS_counter = 1;
     } else if (!strcmp((char *) msg_type,"DAO")) {
+      uip_ipaddr_copy(&ids_node_stats_list[i].parent, &((rpl_dao_t *) aux)->parent_addr);
       ids_node_stats_list[i].DAO_counter = 1;
     }
     ids_node_stats_list[i].used = true;
@@ -1116,6 +1119,7 @@ ids_server_control_messages_update(uip_ipaddr_t *srcaddr, char msg_type[3], void
     } else if (!strcmp((char *) msg_type,"DIS") && (ids_node_stats_list[i].DIS_counter < 254)) {
       ++ids_node_stats_list[i].DIS_counter;
     } else if (!strcmp((char *) msg_type,"DAO")) {
+      uip_ipaddr_copy(&ids_node_stats_list[i].parent, &((rpl_dao_t *) aux)->parent_addr);
       ++ids_node_stats_list[i].DAO_counter;
     }
   }
@@ -1131,6 +1135,27 @@ check_stats()
     printf("Alarm detected from IDS Server\n");
   }
   ids_initialize_control_messages_received();
+}
+
+void
+check_node_not_reachable()
+{
+  char buf[21];
+  char buf2[21];
+  uip_ipaddr_t suspicious;
+  uip_ipaddr_t suspicious_parent;
+  uint8_t i;
+  /* TODO: Instead of choosing suspicious by order, calculate the higher parent */
+  for(i=0; i < MAX_NODE_NEIGHBOR && ids_node_stats_list[i].used; ++i) {
+    if (ids_node_stats_list[i].heartbeat_failures > MAX_HEARTBEAT_FAILURES) {
+      uip_ipaddr_copy(&suspicious_parent, &ids_node_stats_list[i].parent);
+      uip_ipaddr_copy(&suspicious, &ids_node_stats_list[i].ipaddr);
+      break;
+    }
+  }
+  uiplib_ipaddr_snprint(buf,sizeof(buf),&ids_node_stats_list[i].ipaddr);
+  uiplib_ipaddr_snprint(buf2,sizeof(buf2),&ids_node_stats_list[i].parent);
+  printf("Possible Blackhole attack from %s or its parent %s\n", buf, buf2);
 }
 
 /*void

@@ -810,6 +810,7 @@ tcpip_uipcall(void)
     process_post_synch(ts->p, tcpip_event, ts->state);
   }
 }
+
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(tcpip_process, ev, data)
 {
