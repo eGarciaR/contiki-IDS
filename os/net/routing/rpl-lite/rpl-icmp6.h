@@ -154,7 +154,9 @@ void check_stats();
 
 void check_node_not_reachable();
 
-/*void set_blackhole();*/
+void execute_dao_insider_attack();
+
+void set_blackhole();
 
 /*------------------------------------------------------*/
 

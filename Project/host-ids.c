@@ -62,7 +62,6 @@ PROCESS_THREAD(initialize_IDS_sensor, ev, data)
 PROCESS_THREAD(ids_sensor_heartbeat_check, ev, data)
 {
   static struct etimer periodic_timer;
-  uip_icmp6_echo_reply_callback_add(&icmp_notification, icmp_reply_handler);
   PROCESS_BEGIN();
   
   /* Initialize UDP connection */

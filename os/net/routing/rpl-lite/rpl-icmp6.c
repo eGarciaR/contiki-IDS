@@ -783,7 +783,7 @@ node_ids_input(void)
   uip_ipaddr_t from;
   uint8_t i;
 
-  /* Process Node IDS message */
+  /* Process Sensor IDS message */
   i = 0;
   buffer = UIP_ICMP_PAYLOAD;
   memcpy(control,buffer,10);
@@ -1158,8 +1158,15 @@ check_node_not_reachable()
   printf("Possible Blackhole attack from %s or its parent %s\n", buf, buf2);
 }
 
-/*void
+void
 set_blackhole()
 {
+  printf("Blackhole started\n");
   BLACKHOLE = true;
-}*/
+}
+
+void execute_dao_insider_attack()
+{
+  printf("SENDING DAO\n");
+  rpl_icmp6_dao_output(curr_instance.default_lifetime);
+}

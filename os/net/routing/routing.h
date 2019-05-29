@@ -54,7 +54,8 @@
 #include "net/ipv6/uip-sr.h"
 #include "net/linkaddr.h"
 
-//bool BLACKHOLE; /* Added for blackhole */
+int dropped_packets; /*Addded for blackhole */
+bool BLACKHOLE; /* Added for blackhole */
 
 /**
  * The structure of a routing protocol driver.

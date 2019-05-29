@@ -163,10 +163,11 @@ check_for_tcp_syn(void)
 static void
 packet_input(void)
 {
-  /*if (BLACKHOLE) {
-    printf("Dropped packet\n");
+  if (BLACKHOLE) {
+    ++dropped_packets;
+    printf("Packets dropped: %d\n", dropped_packets);
     return;
-  }*/
+  }
 
   if(uip_len > 0) {
     LOG_INFO("input: received %u bytes\n", uip_len);

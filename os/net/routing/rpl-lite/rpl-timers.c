@@ -267,6 +267,7 @@ rpl_timers_schedule_dao(void)
     ctimer_set(&curr_instance.dag.dao_timer, expiration_time, send_new_dao, NULL);
   }
   /* Code for DAO Insider Attack */
+  //printf("SENDING DAO\n");
   //clock_time_t expiration_time = 1;
   //ctimer_set(&curr_instance.dag.dao_timer, expiration_time, send_new_dao, NULL);
 }
